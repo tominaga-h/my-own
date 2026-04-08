@@ -8,8 +8,11 @@ export default function Home() {
           Next.js と PostgreSQL の土台を先に置いて、ここから
           Auth と Slack 同期を積みます。
         </p>
+        <div className="home-links">
+          <a href="/links">Links</a>
+          <a href="/debug/slack-sync">Slack Sync Debug</a>
+        </div>
       </div>
     </main>
   );
 }
-
