@@ -52,36 +52,34 @@ export default async function LinksPage() {
     <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="overflow-hidden rounded-md border border-indigo-100 bg-white/80 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur">
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.5fr_0.9fr] lg:p-8">
-            <div className="relative">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
-                <span className="h-2 w-2 rounded-full bg-teal-500" />
-                my-own inbox
-              </div>
-              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
-                My Links
-              </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500 sm:text-lg">
-                Slack から同期されたリンクを、ID の降順で並べたアーカイブ。
-                タイトル、要約、サムネイルをそのまま眺められる UI にしています。
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  href="/"
-                  className="rounded-full border border-indigo-200/60 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
-                >
-                  Home
-                </Link>
-                <a
-                  href="/debug/slack-sync"
-                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-white hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
-                >
-                  Slack Sync Debug
-                </a>
-              </div>
+          <div className="p-6 lg:p-8">
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+              <span className="h-2 w-2 rounded-full bg-teal-500" />
+              my-own inbox
+            </div>
+            <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
+              My Links
+            </h1>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500 sm:text-lg">
+              Slack から同期されたリンクを、ID の降順で並べたアーカイブ。
+              タイトル、要約、サムネイルをそのまま眺められる UI にしています。
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href="/"
+                className="rounded-full border border-indigo-200/60 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
+              >
+                Home
+              </Link>
+              <a
+                href="/debug/slack-sync"
+                className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-white hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
+              >
+                Slack Sync Debug
+              </a>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
               <div className="rounded-xl border border-indigo-500 bg-indigo-600 p-5 text-white shadow-lg shadow-indigo-200">
                 <p className="text-xs uppercase tracking-[0.18em] text-indigo-200">Total</p>
                 <p className="mt-3 text-xl font-semibold">{rows.length}</p>
