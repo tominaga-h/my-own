@@ -59,7 +59,7 @@ export default async function LinksPage() {
                 my-own inbox
               </div>
               <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl lg:text-6xl">
-                Links
+                My Links
               </h1>
               <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
                 Slack から同期されたリンクを、ID の降順で並べたアーカイブ。
@@ -82,13 +82,13 @@ export default async function LinksPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-3xl border border-stone-200 bg-stone-950 p-5 text-white shadow-lg">
+              <div className="rounded-xl border border-stone-200 bg-stone-950 p-5 text-white shadow-lg">
                 <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Total</p>
-                <p className="mt-3 text-3xl font-semibold">{rows.length}</p>
+                <p className="mt-3 text-xl font-semibold">{rows.length}</p>
                 <p className="mt-1 text-sm text-stone-300">stored links</p>
               </div>
 
-              <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+              <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Latest</p>
                 <p className="mt-3 text-2xl font-semibold text-stone-950">
                   #{latest?.id ?? "—"}
@@ -98,7 +98,7 @@ export default async function LinksPage() {
                 </p>
               </div>
 
-              <div className="rounded-3xl border border-stone-200 bg-white p-5 shadow-sm">
+              <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
                 <p className="text-xs uppercase tracking-[0.18em] text-stone-400">With images</p>
                 <p className="mt-3 text-2xl font-semibold text-stone-950">{totalImageCount}</p>
                 <p className="mt-1 text-sm text-stone-500">cards with preview art</p>

@@ -9,6 +9,7 @@ export default function Home() {
           Auth と Slack 同期を積みます。
         </p>
         <div className="home-links">
+          <a href="/notes">Notes</a>
           <a href="/links">Links</a>
           <a href="/debug/slack-sync">Slack Sync Debug</a>
         </div>
