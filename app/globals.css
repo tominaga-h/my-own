@@ -62,3 +62,14 @@ p {
   color: var(--muted);
 }
 
+.json {
+  margin: 20px 0 0;
+  padding: 16px;
+  overflow: auto;
+  background: rgba(23, 23, 23, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--fg);
+  font-size: 13px;
+  line-height: 1.5;
+}
