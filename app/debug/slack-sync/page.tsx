@@ -11,6 +11,7 @@ export default async function SlackSyncDebugPage() {
         <div className="card">
           <p className="eyebrow">debug</p>
           <h1>Slack sync result</h1>
+          <p>DB user: {data.databaseUserId}</p>
           <p>Auth user: {data.authedUserId}</p>
           <p>Fetched messages: {data.fetchedMessages}</p>
           <p>Notes inserted: {data.notesInserted}</p>
@@ -34,4 +35,3 @@ export default async function SlackSyncDebugPage() {
     );
   }
 }
-

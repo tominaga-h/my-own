@@ -3,6 +3,7 @@ import { links, notes, syncStates } from "../db/schema";
 import { getMostLikelySelfDm, type SlackMessage } from "./slack";
 
 type SyncResult = {
+  databaseUserId: string;
   authedUserId: string;
   fetchedMessages: number;
   notesInserted: number;
@@ -33,9 +34,18 @@ function isLinkMessage(message: SlackMessage) {
   return extractUrls(message.text ?? "").length > 0;
 }
 
+function getDatabaseUserId() {
+  const userId = process.env.APP_USER_ID;
+  if (!userId) {
+    throw new Error("APP_USER_ID is required");
+  }
+
+  return userId;
+}
+
 export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
   const payload = await getMostLikelySelfDm();
-  const userId = payload.authed_user_id;
+  const databaseUserId = getDatabaseUserId();
   let notesInserted = 0;
   let linksInserted = 0;
   let lastMessageTs: string | null = null;
@@ -60,7 +70,7 @@ export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
       const inserted = await db
         .insert(links)
         .values({
-          userId,
+          userId: databaseUserId,
           url,
           title: null,
           description: description || null,
@@ -78,7 +88,7 @@ export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
     const inserted = await db
       .insert(notes)
       .values({
-        userId,
+        userId: databaseUserId,
         body: text,
         source: "slack",
         slackTs: message.ts,
@@ -94,7 +104,7 @@ export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
     await db
       .insert(syncStates)
       .values({
-        userId,
+        userId: databaseUserId,
         key: "slack_last_ts",
         value: lastMessageTs,
       })
@@ -108,7 +118,8 @@ export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
   }
 
   return {
-    authedUserId: userId,
+    databaseUserId,
+    authedUserId: payload.authed_user_id,
     fetchedMessages: messages.length,
     notesInserted,
     linksInserted,
