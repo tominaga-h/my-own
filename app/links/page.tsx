@@ -132,9 +132,9 @@ export default async function LinksPage() {
                     <img
                       src={imageUrl}
                       alt=""
-                      className="h-full w-full object-fit transition duration-300 group-hover:scale-[1.03]"
+                      className="h-full w-full object-contain bg-white transition duration-300 group-hover:scale-[1.03]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/10 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/1 to-transparent" />
                     <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
                       {serviceName}
                     </div>
