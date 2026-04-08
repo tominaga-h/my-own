@@ -13,6 +13,7 @@ type NoteRow = {
   source: string;
   slackTs: string | null;
   projectId: number | null;
+  postedAt: Date;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -240,7 +241,7 @@ export default function NotesView({ rows }: { rows: NoteRow[] }) {
                         {row.source}
                       </span>
                       <span className="text-xs text-slate-400">
-                        {new Date(row.createdAt).toLocaleDateString("ja-JP")}
+                        {new Date(row.postedAt).toLocaleDateString("ja-JP")}
                       </span>
                     </div>
 

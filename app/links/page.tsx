@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { asc, eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { db } from "../../lib/db";
 import { links } from "../../db/schema";
@@ -42,7 +42,7 @@ export default async function LinksPage() {
     .select()
     .from(links)
     .where(eq(links.userId, databaseUserId))
-    .orderBy(asc(links.id))
+    .orderBy(desc(links.postedAt))
     .limit(100);
 
   const latest = rows[0] ?? null;

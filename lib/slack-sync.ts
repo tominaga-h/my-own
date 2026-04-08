@@ -24,6 +24,10 @@ function cleanText(text: string) {
   return text.trim();
 }
 
+function slackTsToDate(ts: string) {
+  return new Date(parseFloat(ts) * 1000);
+}
+
 function compareSlackTs(left: string, right: string) {
   const [leftSeconds, leftFraction = ""] = left.split(".");
   const [rightSeconds, rightFraction = ""] = right.split(".");
@@ -102,6 +106,7 @@ export async function syncSlackSelfDmToDatabase(options: SyncOptions = {}): Prom
           slackAttachments: message.attachments ?? null,
           source: "slack",
           slackTs: message.ts,
+          postedAt: slackTsToDate(message.ts),
           projectId: null,
         })
         .onConflictDoNothing({ target: [links.userId, links.slackTs] })
@@ -118,6 +123,7 @@ export async function syncSlackSelfDmToDatabase(options: SyncOptions = {}): Prom
         body: text,
         source: "slack",
         slackTs: message.ts,
+        postedAt: slackTsToDate(message.ts),
         projectId: null,
       })
       .onConflictDoNothing({ target: [notes.userId, notes.slackTs] })

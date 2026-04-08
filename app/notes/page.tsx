@@ -22,7 +22,7 @@ export default async function NotesPage() {
     .select()
     .from(notes)
     .where(eq(notes.userId, databaseUserId))
-    .orderBy(desc(notes.id))
+    .orderBy(desc(notes.postedAt))
     .limit(200);
 
   return (

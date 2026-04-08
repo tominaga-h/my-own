@@ -15,6 +15,13 @@
       "when": 1775657635761,
       "tag": "0001_light_shatterstar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1775664213375,
+      "tag": "0002_flashy_dark_phoenix",
+      "breakpoints": true
     }
   ]
 }
