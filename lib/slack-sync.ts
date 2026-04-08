@@ -65,15 +65,18 @@ export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
       if (!url) {
         continue;
       }
-      const description = text.replace(url, "").trim();
+      const attachment = message.attachments?.[0] ?? null;
+      const title = attachment?.title ?? null;
+      const description = attachment?.text ?? text.replace(url, "").trim();
 
       const inserted = await db
         .insert(links)
         .values({
           userId: databaseUserId,
           url,
-          title: null,
+          title,
           description: description || null,
+          slackAttachments: message.attachments ?? null,
           source: "slack",
           slackTs: message.ts,
           projectId: null,

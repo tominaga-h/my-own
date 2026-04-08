@@ -1,9 +1,11 @@
 import { syncSlackSelfDmToDatabase } from "../../../lib/slack-sync";
+import { getMostLikelySelfDmDebug } from "../../../lib/slack";
 
 export const dynamic = "force-dynamic";
 
 export default async function SlackSyncDebugPage() {
   try {
+    const debug = await getMostLikelySelfDmDebug();
     const data = await syncSlackSelfDmToDatabase();
 
     return (
@@ -17,6 +19,8 @@ export default async function SlackSyncDebugPage() {
           <p>Notes inserted: {data.notesInserted}</p>
           <p>Links inserted: {data.linksInserted}</p>
           <p>Last ts: {data.lastMessageTs ?? "none"}</p>
+          <p>Debug messages: {debug.debug.rawMessages.length}</p>
+          <pre className="json">{JSON.stringify(debug.debug.rawMessages, null, 2)}</pre>
           <pre className="json">{JSON.stringify(data, null, 2)}</pre>
         </div>
       </main>

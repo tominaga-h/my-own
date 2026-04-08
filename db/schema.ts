@@ -2,6 +2,7 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   serial,
@@ -56,6 +57,7 @@ export const links = pgTable(
     url: text("url").notNull(),
     title: text("title"),
     description: text("description"),
+    slackAttachments: jsonb("slack_attachments").$type<unknown[] | null>(),
     source: text("source").notNull().default("manual"),
     slackTs: text("slack_ts"),
     projectId: integer("project_id").references(() => projects.id, {

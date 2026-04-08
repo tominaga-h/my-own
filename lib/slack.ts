@@ -1,6 +1,30 @@
 type SlackApiOk<T> = { ok: true } & T;
 type SlackApiError = { ok: false; error: string };
 
+export type SlackAttachment = {
+  from_url?: string;
+  image_url?: string;
+  thumb_url?: string;
+  image_width?: number;
+  image_height?: number;
+  image_bytes?: number;
+  service_icon?: string;
+  id?: number;
+  original_url?: string;
+  fallback?: string;
+  text?: string;
+  title?: string;
+  title_link?: string;
+  service_name?: string;
+  color?: string;
+  bot_id?: string;
+  bot_team_id?: string;
+  app_unfurl_url?: string;
+  is_app_unfurl?: boolean;
+  app_id?: string;
+  fields?: Array<{ value?: string; title?: string; short?: boolean }>;
+};
+
 export type SlackConversation = {
   id: string;
   user?: string;
@@ -18,6 +42,8 @@ export type SlackMessage = {
   ts: string;
   channel?: string;
   thread_ts?: string;
+  attachments?: SlackAttachment[];
+  blocks?: Array<Record<string, unknown>>;
 };
 
 export type SlackSelfDmResult = {
@@ -25,6 +51,12 @@ export type SlackSelfDmResult = {
   conversation: SlackConversation | null;
   conversations: SlackConversation[];
   messages: SlackMessage[];
+};
+
+export type SlackDebugResult = SlackSelfDmResult & {
+  debug: {
+    rawMessages: SlackMessage[];
+  };
 };
 
 function getSlackToken() {
@@ -113,4 +145,14 @@ export async function getMostLikelySelfDm() {
     conversations,
     messages: history.messages ?? [],
   } satisfies SlackSelfDmResult;
+}
+
+export async function getMostLikelySelfDmDebug() {
+  const result = await getMostLikelySelfDm();
+  return {
+    ...result,
+    debug: {
+      rawMessages: result.messages.slice(0, 5),
+    },
+  } satisfies SlackDebugResult;
 }

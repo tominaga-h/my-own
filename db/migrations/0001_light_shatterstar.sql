@@ -1,0 +1,1 @@
+ALTER TABLE "links" ADD COLUMN "slack_attachments" jsonb;
