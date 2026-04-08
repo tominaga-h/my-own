@@ -51,7 +51,7 @@ export default async function LinksPage() {
   return (
     <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="overflow-hidden rounded-md border border-indigo-100 bg-white/80 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur">
+        <header className="overflow-hidden rounded-xl border border-indigo-100 bg-white/80 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur">
           <div className="p-6 lg:p-8">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
               <span className="h-2 w-2 rounded-full bg-teal-500" />
@@ -132,16 +132,16 @@ export default async function LinksPage() {
                     <img
                       src={imageUrl}
                       alt=""
-                      className="h-full w-full object-contain bg-white transition duration-300 group-hover:scale-[1.03]"
+                      className="h-full w-full object-contain bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] transition duration-300 group-hover:scale-[1.03]"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-black/1 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/1 to-transparent" />
                     <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
                       {serviceName}
                     </div>
                   </a>
                 ) : (
-                  <div className="flex aspect-[411/257] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
-                    <div className="rounded-full border border-indigo-200/60 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-indigo-500">
+                  <div className="flex relative aspect-[40/21] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
+                    <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
                       {serviceName}
                     </div>
                   </div>
@@ -155,7 +155,7 @@ export default async function LinksPage() {
                     <span>{new Date(row.createdAt).toLocaleDateString("ja-JP")}</span>
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 min-h-[232px]">
                     <h2 className="text-lg font-semibold leading-7 text-slate-900">
                       <a
                         href={targetUrl}
