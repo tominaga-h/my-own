@@ -8,10 +8,10 @@
   body {
     min-height: 100%;
     margin: 0;
-    color: #171717;
-    font-family: Arial, Helvetica, sans-serif;
+    color: #1e293b;
+    font-family: "Inter", "SF Pro Display", system-ui, -apple-system, sans-serif;
     background:
-      radial-gradient(circle at top, #ffffff 0, #f6f3ee 45%, #efe5d7 100%);
+      radial-gradient(ellipse at top left, #eef2ff 0%, #f8fafc 40%, #f1f5f9 100%);
   }
 }
 
@@ -21,15 +21,15 @@
   }
 
   .card {
-    @apply w-full max-w-3xl rounded-[28px] border border-amber-200/60 bg-white/70 p-8 shadow-[0_18px_50px_rgba(23,23,23,0.08)] backdrop-blur;
+    @apply w-full max-w-3xl rounded-[28px] border border-indigo-100 bg-white/80 p-8 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur;
   }
 
   .eyebrow {
-    @apply mb-3 text-xs uppercase tracking-[0.18em] text-stone-500;
+    @apply mb-3 text-xs uppercase tracking-[0.18em] text-slate-500;
   }
 
   .json {
-    @apply mt-5 overflow-auto rounded-2xl border border-stone-200 bg-stone-50 p-4 text-[13px] leading-5 text-stone-800;
+    @apply mt-5 overflow-auto rounded-2xl border border-slate-200 bg-slate-50 p-4 text-[13px] leading-5 text-slate-700;
   }
 
   .home-links {
@@ -37,6 +37,6 @@
   }
 
   .home-links a {
-    @apply rounded-full border border-stone-200 bg-white/70 px-4 py-2 text-sm text-stone-900 no-underline transition hover:-translate-y-0.5 hover:border-stone-300 hover:bg-white;
+    @apply rounded-full border border-indigo-200/60 bg-white/80 px-4 py-2 text-sm text-slate-800 no-underline transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-white hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)];
   }
 }

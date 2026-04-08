@@ -49,32 +49,32 @@ export default async function LinksPage() {
   const totalImageCount = rows.filter((row) => asAttachments(row.slackAttachments)[0]?.image_url || asAttachments(row.slackAttachments)[0]?.thumb_url).length;
 
   return (
-    <main className="min-h-screen px-4 py-6 text-stone-950 sm:px-6 lg:px-8">
+    <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="overflow-hidden rounded-md border border-white/60 bg-white/70 shadow-[0_18px_50px_rgba(23,23,23,0.08)] backdrop-blur">
+        <header className="overflow-hidden rounded-md border border-indigo-100 bg-white/80 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur">
           <div className="grid gap-6 p-6 lg:grid-cols-[1.5fr_0.9fr] lg:p-8">
             <div className="relative">
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-200/60 bg-white/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-indigo-500">
+                <span className="h-2 w-2 rounded-full bg-teal-500" />
                 my-own inbox
               </div>
-              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-stone-950 sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl lg:text-6xl">
                 My Links
               </h1>
-              <p className="mt-4 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg">
+              <p className="mt-4 max-w-2xl text-base leading-7 text-slate-500 sm:text-lg">
                 Slack から同期されたリンクを、ID の降順で並べたアーカイブ。
                 タイトル、要約、サムネイルをそのまま眺められる UI にしています。
               </p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/"
-                  className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-900 transition hover:-translate-y-0.5 hover:border-stone-300 hover:shadow-sm"
+                  className="rounded-full border border-indigo-200/60 bg-white px-4 py-2 text-sm font-medium text-slate-800 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
                 >
                   Home
                 </Link>
                 <a
                   href="/debug/slack-sync"
-                  className="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-sm font-medium text-stone-700 transition hover:-translate-y-0.5 hover:border-stone-300 hover:bg-white hover:shadow-sm"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-white hover:shadow-[0_4px_12px_rgba(99,102,241,0.1)]"
                 >
                   Slack Sync Debug
                 </a>
@@ -82,26 +82,26 @@ export default async function LinksPage() {
             </div>
 
             <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-              <div className="rounded-xl border border-stone-200 bg-stone-950 p-5 text-white shadow-lg">
-                <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Total</p>
+              <div className="rounded-xl border border-indigo-500 bg-indigo-600 p-5 text-white shadow-lg shadow-indigo-200">
+                <p className="text-xs uppercase tracking-[0.18em] text-indigo-200">Total</p>
                 <p className="mt-3 text-xl font-semibold">{rows.length}</p>
-                <p className="mt-1 text-sm text-stone-300">stored links</p>
+                <p className="mt-1 text-sm text-indigo-200">stored links</p>
               </div>
 
-              <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.18em] text-stone-400">Latest</p>
-                <p className="mt-3 text-2xl font-semibold text-stone-950">
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Latest</p>
+                <p className="mt-3 text-2xl font-semibold text-slate-900">
                   #{latest?.id ?? "—"}
                 </p>
-                <p className="mt-1 text-sm text-stone-500">
+                <p className="mt-1 text-sm text-slate-500">
                   {latest ? new Date(latest.createdAt).toLocaleDateString("ja-JP") : "No data"}
                 </p>
               </div>
 
-              <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
-                <p className="text-xs uppercase tracking-[0.18em] text-stone-400">With images</p>
-                <p className="mt-3 text-2xl font-semibold text-stone-950">{totalImageCount}</p>
-                <p className="mt-1 text-sm text-stone-500">cards with preview art</p>
+              <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.18em] text-slate-400">With images</p>
+                <p className="mt-3 text-2xl font-semibold text-slate-900">{totalImageCount}</p>
+                <p className="mt-1 text-sm text-slate-500">cards with preview art</p>
               </div>
             </div>
           </div>
@@ -122,11 +122,11 @@ export default async function LinksPage() {
             return (
               <article
                 key={row.id}
-                className="group overflow-hidden rounded-xl border border-stone-200 bg-white transition duration-200 hover:-translate-y-1"
+                className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]"
               >
                 {imageUrl ? (
                   <a
-                    className="relative block aspect-[40/21] overflow-hidden bg-stone-100"
+                    className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
                     href={targetUrl}
                     target="_blank"
                     rel="noreferrer"
@@ -142,50 +142,50 @@ export default async function LinksPage() {
                     </div>
                   </a>
                 ) : (
-                  <div className="flex aspect-[411/257] items-end bg-[radial-gradient(circle_at_top_right,_rgba(180,83,9,0.14),_transparent_40%),linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(245,245,244,0.95))] p-5">
-                    <div className="rounded-full border border-stone-200 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500">
+                  <div className="flex aspect-[411/257] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
+                    <div className="rounded-full border border-indigo-200/60 bg-white/80 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-indigo-500">
                       {serviceName}
                     </div>
                   </div>
                 )}
 
                 <div className="space-y-4 p-5">
-                  <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.18em] text-stone-500">
-                    <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 font-semibold text-stone-600">
+                  <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
                       #{row.id}
                     </span>
                     <span>{new Date(row.createdAt).toLocaleDateString("ja-JP")}</span>
                   </div>
 
                   <div className="space-y-2">
-                    <h2 className="text-lg font-semibold leading-7 text-stone-950">
+                    <h2 className="text-lg font-semibold leading-7 text-slate-900">
                       <a
                         href={targetUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="transition hover:text-amber-700"
+                        className="transition hover:text-indigo-600"
                       >
                         {title}
                       </a>
                     </h2>
                     {description ? (
-                      <p className="text-sm leading-6 text-stone-600">
+                      <p className="text-sm leading-6 text-slate-500">
                         {truncate(description)}
                       </p>
                     ) : null}
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-stone-100 pt-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
                     <a
                       href={row.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="max-w-full truncate text-sm font-medium text-stone-900 transition hover:text-amber-700"
+                      className="max-w-full truncate text-sm font-medium text-slate-700 transition hover:text-indigo-600"
                       title={sourceLabel}
                     >
                       {sourceLabel}
                     </a>
-                    <span className="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-stone-500">
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
                       {index + 1}
                     </span>
                   </div>
@@ -195,7 +195,7 @@ export default async function LinksPage() {
           })}
 
           {rows.length === 0 ? (
-            <div className="md:col-span-2 xl:col-span-3 rounded-[28px] border border-dashed border-stone-300 bg-white/70 p-8 text-stone-600 shadow-sm">
+            <div className="md:col-span-2 xl:col-span-3 rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm">
               まだリンクがありません。Slack 同期を先に走らせてください。
             </div>
           ) : null}
