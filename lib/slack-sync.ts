@@ -1,6 +1,7 @@
 import { db } from "./db";
 import { links, notes, syncStates } from "../db/schema";
-import { getMostLikelySelfDm, type SlackMessage } from "./slack";
+import { and, eq } from "drizzle-orm";
+import { getMostLikelySelfDmSince, type SlackMessage } from "./slack";
 
 type SyncResult = {
   databaseUserId: string;
@@ -9,6 +10,10 @@ type SyncResult = {
   notesInserted: number;
   linksInserted: number;
   lastMessageTs: string | null;
+};
+
+type SyncOptions = {
+  backfillDays?: number;
 };
 
 function extractUrls(text: string) {
@@ -43,9 +48,27 @@ function getDatabaseUserId() {
   return userId;
 }
 
-export async function syncSlackSelfDmToDatabase(): Promise<SyncResult> {
-  const payload = await getMostLikelySelfDm();
+async function getLastSyncedTs(databaseUserId: string) {
+  const rows = await db
+    .select({ value: syncStates.value })
+    .from(syncStates)
+    .where(and(eq(syncStates.userId, databaseUserId), eq(syncStates.key, "slack_last_ts")))
+    .limit(1);
+
+  return rows[0]?.value ?? null;
+}
+
+function getOldestTsFromDays(days: number) {
+  const now = Date.now();
+  const oldest = new Date(now - days * 24 * 60 * 60 * 1000);
+  return (oldest.getTime() / 1000).toFixed(6);
+}
+
+export async function syncSlackSelfDmToDatabase(options: SyncOptions = {}): Promise<SyncResult> {
   const databaseUserId = getDatabaseUserId();
+  const oldestTs = options.backfillDays ? getOldestTsFromDays(options.backfillDays) : null;
+  const lastSyncedTs = oldestTs ? null : await getLastSyncedTs(databaseUserId);
+  const payload = await getMostLikelySelfDmSince(oldestTs ?? lastSyncedTs ?? undefined);
   let notesInserted = 0;
   let linksInserted = 0;
   let lastMessageTs: string | null = null;

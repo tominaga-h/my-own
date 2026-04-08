@@ -53,6 +53,11 @@ export type SlackSelfDmResult = {
   messages: SlackMessage[];
 };
 
+type SlackHistoryOptions = {
+  oldestTs?: string;
+  latestTs?: string;
+};
+
 export type SlackDebugResult = SlackSelfDmResult & {
   debug: {
     rawMessages: SlackMessage[];
@@ -121,6 +126,10 @@ export async function listDmConversations() {
 }
 
 export async function getMostLikelySelfDm() {
+  return getMostLikelySelfDmSince();
+}
+
+export async function getMostLikelySelfDmSince(oldestTs?: string) {
   const authedUserId = await getAuthedUserId();
   const conversations = await listDmConversations();
   const conversation = conversations.find((item) => item.user === authedUserId) ?? null;
@@ -134,17 +143,43 @@ export async function getMostLikelySelfDm() {
     } satisfies SlackSelfDmResult;
   }
 
-  const history = await slackApi<{ messages?: SlackMessage[] }>("conversations.history", {
-    channel: conversation.id,
-    limit: "20",
-  });
+  const history = await fetchAllDmMessages(conversation.id, { oldestTs });
 
   return {
     authed_user_id: authedUserId,
     conversation,
     conversations,
-    messages: history.messages ?? [],
+    messages: history,
   } satisfies SlackSelfDmResult;
+}
+
+async function fetchAllDmMessages(channelId: string, options: SlackHistoryOptions = {}) {
+  const messages: SlackMessage[] = [];
+  let latestTs = options.latestTs;
+  let hasMore = true;
+
+  while (hasMore) {
+    const payload = await slackApi<{
+      messages?: SlackMessage[];
+      has_more?: boolean;
+    }>("conversations.history", {
+      channel: channelId,
+      ...(options.oldestTs ? { oldest: options.oldestTs, inclusive: "false" } : {}),
+      ...(latestTs ? { latest: latestTs, inclusive: "false" } : {}),
+      limit: "100",
+    });
+
+    const page = payload.messages ?? [];
+    messages.push(...page);
+    hasMore = Boolean(payload.has_more);
+    latestTs = page[page.length - 1]?.ts;
+
+    if (!latestTs) {
+      break;
+    }
+  }
+
+  return messages;
 }
 
 export async function getMostLikelySelfDmDebug() {
