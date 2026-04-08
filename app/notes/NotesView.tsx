@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { createNote } from "./actions";
 
 type NoteFilter = "all" | "slack" | "manual" | "project";
 
@@ -31,10 +32,13 @@ function getNoteHeadline(body: string) {
 }
 
 export default function NotesView({ rows }: { rows: NoteRow[] }) {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<NoteFilter>("all");
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
     rows[0]?.id ?? null,
   );
+  const [draft, setDraft] = useState("");
+  const [isPending, startTransition] = useTransition();
 
   const filteredRows = rows.filter((row) => {
     if (activeFilter === "slack") return row.source === "slack";
@@ -154,6 +158,48 @@ export default function NotesView({ rows }: { rows: NoteRow[] }) {
       </aside>
 
       <section className="overflow-hidden rounded-xl border border-indigo-100 bg-white/80 shadow-[0_18px_50px_rgba(99,102,241,0.07)] backdrop-blur">
+        <form
+          className="border-b border-slate-200 px-4 py-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const body = draft.trim();
+            if (!body || isPending) return;
+            startTransition(async () => {
+              const result = await createNote(body);
+              if (result.note) {
+                setDraft("");
+                setSelectedNoteId(result.note.id);
+                router.refresh();
+              }
+            });
+          }}
+        >
+          <textarea
+            className="w-full resize-none rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+            placeholder="新しいメモを書く..."
+            rows={4}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
+          />
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-[11px] text-slate-400">
+              Cmd+Enter で投稿
+            </span>
+            <button
+              type="submit"
+              disabled={!draft.trim() || isPending}
+              className="rounded-full border border-indigo-500 bg-indigo-600 px-5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:opacity-80 disabled:opacity-40"
+            >
+              {isPending ? "保存中..." : "投稿"}
+            </button>
+          </div>
+        </form>
+
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <div>
             <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
@@ -168,7 +214,7 @@ export default function NotesView({ rows }: { rows: NoteRow[] }) {
           </span>
         </div>
 
-        <ul className="max-h-[calc(100vh-190px)] divide-y divide-slate-100 overflow-auto">
+        <ul className="max-h-[calc(100vh-250px)] divide-y divide-slate-100 overflow-auto">
           {filteredRows.map((row) => {
             const body = row.body.trim();
             const headline = getNoteHeadline(body);
