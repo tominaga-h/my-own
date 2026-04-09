@@ -1,9 +1,9 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "../../lib/db";
-import { links } from "../../db/schema";
+import { links, syncStates } from "../../db/schema";
 
 type SlackAttachment = {
   title?: string;
@@ -38,12 +38,20 @@ export const dynamic = "force-dynamic";
 
 export default async function LinksPage() {
   const databaseUserId = getDatabaseUserId();
-  const rows = await db
-    .select()
-    .from(links)
-    .where(eq(links.userId, databaseUserId))
-    .orderBy(desc(links.postedAt))
-    .limit(100);
+  const [rows, syncRow] = await Promise.all([
+    db
+      .select()
+      .from(links)
+      .where(eq(links.userId, databaseUserId))
+      .orderBy(desc(links.postedAt))
+      .limit(100),
+    db
+      .select({ updatedAt: syncStates.updatedAt })
+      .from(syncStates)
+      .where(and(eq(syncStates.userId, databaseUserId), eq(syncStates.key, "slack_last_ts")))
+      .then((r) => r[0] ?? null),
+  ]);
+  const lastSyncedAt = syncRow?.updatedAt ?? null;
 
   const latest = rows[0] ?? null;
   const totalImageCount = rows.filter((row) => asAttachments(row.slackAttachments)[0]?.image_url || asAttachments(row.slackAttachments)[0]?.thumb_url).length;
@@ -64,6 +72,11 @@ export default async function LinksPage() {
               Slack から同期されたリンクを、ID の降順で並べたアーカイブ。
               タイトル、要約、サムネイルをそのまま眺められる UI にしています。
             </p>
+            {lastSyncedAt && (
+              <p className="mt-2 text-sm text-slate-400">
+                最終同期: {new Date(lastSyncedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+              </p>
+            )}
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href="/"
