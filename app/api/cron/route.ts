@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncSlackSelfDmToDatabase } from "@/lib/slack-sync";
+import { syncSlackSelfDmToDatabase } from "../../../lib/slack-sync";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
