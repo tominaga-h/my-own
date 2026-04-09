@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "../../lib/db";
-import { notes } from "../../db/schema";
+import { notes, syncStates } from "../../db/schema";
 import NotesView from "./NotesView";
 
 function getDatabaseUserId() {
@@ -18,12 +18,20 @@ export const dynamic = "force-dynamic";
 
 export default async function NotesPage() {
   const databaseUserId = getDatabaseUserId();
-  const rows = await db
-    .select()
-    .from(notes)
-    .where(eq(notes.userId, databaseUserId))
-    .orderBy(desc(notes.postedAt))
-    .limit(200);
+  const [rows, syncRow] = await Promise.all([
+    db
+      .select()
+      .from(notes)
+      .where(eq(notes.userId, databaseUserId))
+      .orderBy(desc(notes.postedAt))
+      .limit(200),
+    db
+      .select({ updatedAt: syncStates.updatedAt })
+      .from(syncStates)
+      .where(and(eq(syncStates.userId, databaseUserId), eq(syncStates.key, "slack_last_ts")))
+      .then((r) => r[0] ?? null),
+  ]);
+  const lastSyncedAt = syncRow?.updatedAt ?? null;
 
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
@@ -42,6 +50,11 @@ export default async function NotesPage() {
                 Quiver みたいに、左で分類・中央で一覧・右で本文プレビューを見る構成。
                 雑誌型よりも、メモを高速に拾うことを優先しています。
               </p>
+              {lastSyncedAt && (
+                <p className="mt-2 text-sm text-slate-400">
+                  最終同期: {new Date(lastSyncedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
