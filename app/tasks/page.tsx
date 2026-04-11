@@ -35,17 +35,8 @@ export default async function TasksPage() {
   }
 
   return (
-    <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 px-1 py-2">
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-            My Tasks
-          </h1>
-          <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-500">
-            {rows.length} tasks
-          </span>
-        </div>
-
+    <main className="min-h-screen px-3 py-2 text-slate-800 sm:px-4 lg:px-5">
+      <div className="mx-auto max-w-[1600px]">
         <TasksView rows={rows} remindsMap={remindsMap} projectMap={projectMap} />
       </div>
     </main>
