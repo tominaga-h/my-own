@@ -29,5 +29,6 @@ export async function createNote(body: string) {
     .returning();
 
   revalidatePath("/notes");
+  revalidatePath("/");
   return { note: row };
 }
