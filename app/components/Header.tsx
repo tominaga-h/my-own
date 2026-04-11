@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
@@ -22,9 +23,7 @@ export default function Header() {
         <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-5">
           {/* Logo */}
           <Link href="/" className="group flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-[#3525cd] to-[#4f46e5] text-[11px] font-bold text-white shadow-[0_2px_8px_rgba(53,37,205,0.25)]">
-              m
-            </span>
+            <Image src="/logo.svg" alt="my-own" width={45} height={45} />
             <span className="text-[15px] font-semibold tracking-tight text-slate-800 transition-colors group-hover:text-[#3525cd]">
               my-own
             </span>

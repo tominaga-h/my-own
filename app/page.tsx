@@ -10,6 +10,7 @@ import {
 } from "../lib/queries";
 import { getGreeting, getNoteHeadline, relativeTime, truncateText } from "../lib/format";
 import QuickCapture from "./components/QuickCapture";
+import HeroSection from "./components/HeroSection";
 
 type SlackAttachment = {
   title?: string;
@@ -46,13 +47,16 @@ export default async function Home() {
   const isEmpty = stats.notesCount === 0 && stats.linksCount === 0;
 
   return (
-    <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-4xl flex-col">
+    <main className="min-h-screen text-slate-800">
+      {/* ── Hero ── */}
+      <HeroSection />
+
+      <div className="mx-auto flex max-w-4xl flex-col px-4 sm:px-6 lg:px-8 py-6">
         {/* Greeting + Pulse */}
         <section className="flex flex-wrap items-baseline justify-between gap-4 px-1 py-2">
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
             {greeting}
-          </h1>
+          </h2>
           <div className="flex items-center gap-5 text-xs tracking-[0.18em] uppercase text-slate-400">
             <span>{stats.notesCount} notes</span>
             <span>{stats.linksCount} links</span>
