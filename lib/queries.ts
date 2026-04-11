@@ -1,18 +1,11 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "./db";
+import { getAuthUser } from "./auth";
 import { links, notes, projects, syncStates } from "../db/schema";
 
-export function getDatabaseUserId(): string {
-  const userId = process.env.APP_USER_ID;
-  if (!userId) {
-    throw new Error("APP_USER_ID is required");
-  }
-  return userId;
-}
-
 export async function getRecentNotes(limit = 5) {
-  const userId = getDatabaseUserId();
+  const userId = await getAuthUser();
   return db
     .select()
     .from(notes)
@@ -22,7 +15,7 @@ export async function getRecentNotes(limit = 5) {
 }
 
 export async function getRecentLinks(limit = 4) {
-  const userId = getDatabaseUserId();
+  const userId = await getAuthUser();
   return db
     .select()
     .from(links)
@@ -32,7 +25,7 @@ export async function getRecentLinks(limit = 4) {
 }
 
 export async function getCollectionStats() {
-  const userId = getDatabaseUserId();
+  const userId = await getAuthUser();
   const [notesResult, linksResult] = await Promise.all([
     db
       .select({ count: count() })
@@ -50,7 +43,7 @@ export async function getCollectionStats() {
 }
 
 export async function getLastSyncTime(): Promise<Date | null> {
-  const userId = getDatabaseUserId();
+  const userId = await getAuthUser();
   const row = await db
     .select({ updatedAt: syncStates.updatedAt })
     .from(syncStates)
@@ -60,7 +53,7 @@ export async function getLastSyncTime(): Promise<Date | null> {
 }
 
 export async function getProjectsWithCounts() {
-  const userId = getDatabaseUserId();
+  const userId = await getAuthUser();
   const rows = await db
     .select({
       id: projects.id,

@@ -1,22 +1,14 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "../../lib/db";
+import { getAuthUser } from "../../lib/auth";
 import { notes, syncStates } from "../../db/schema";
 import NotesView from "./NotesView";
-
-function getDatabaseUserId() {
-  const userId = process.env.APP_USER_ID;
-  if (!userId) {
-    throw new Error("APP_USER_ID is required");
-  }
-
-  return userId;
-}
 
 export const dynamic = "force-dynamic";
 
 export default async function NotesPage() {
-  const databaseUserId = getDatabaseUserId();
+  const databaseUserId = await getAuthUser();
   const [rows, syncRow] = await Promise.all([
     db
       .select()

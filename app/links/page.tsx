@@ -2,6 +2,7 @@
 import { and, desc, eq } from "drizzle-orm";
 
 import { db } from "../../lib/db";
+import { getAuthUser } from "../../lib/auth";
 import { links, syncStates } from "../../db/schema";
 
 type SlackAttachment = {
@@ -15,15 +16,6 @@ type SlackAttachment = {
   fallback?: string;
 };
 
-function getDatabaseUserId() {
-  const userId = process.env.APP_USER_ID;
-  if (!userId) {
-    throw new Error("APP_USER_ID is required");
-  }
-
-  return userId;
-}
-
 function asAttachments(value: unknown) {
   return Array.isArray(value) ? (value as SlackAttachment[]) : [];
 }
@@ -36,7 +28,7 @@ function truncate(text: string, max = 180) {
 export const dynamic = "force-dynamic";
 
 export default async function LinksPage() {
-  const databaseUserId = getDatabaseUserId();
+  const databaseUserId = await getAuthUser();
   const [rows, syncRow] = await Promise.all([
     db
       .select()
