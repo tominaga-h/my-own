@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 
 const navItems = [
+  { href: "/tasks", label: "Tasks" },
   { href: "/notes", label: "Notes" },
   { href: "/links", label: "Links" },
 ] as const;
