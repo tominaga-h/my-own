@@ -52,8 +52,6 @@ export default async function LinksPage() {
   ]);
   const lastSyncedAt = syncRow?.updatedAt ?? null;
 
-  const latest = rows[0] ?? null;
-  const totalImageCount = rows.filter((row) => asAttachments(row.slackAttachments)[0]?.image_url || asAttachments(row.slackAttachments)[0]?.thumb_url).length;
 
   return (
     <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
@@ -72,29 +70,6 @@ export default async function LinksPage() {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl bg-gradient-to-br from-[#3525cd] to-[#4f46e5] p-5 text-white shadow-[0_8px_24px_rgba(53,37,205,0.2)]">
-              <p className="text-xs uppercase tracking-[0.18em] text-indigo-200">Total</p>
-              <p className="mt-3 text-xl font-semibold">{rows.length}</p>
-              <p className="mt-1 text-sm text-indigo-200">stored links</p>
-            </div>
-
-            <div className="rounded-xl bg-white/80 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Latest</p>
-              <p className="mt-3 text-2xl font-semibold text-slate-900">
-                #{latest?.id ?? "\u2014"}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {latest ? new Date(latest.createdAt).toLocaleDateString("ja-JP") : "No data"}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-white/80 p-5 shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-              <p className="text-xs uppercase tracking-[0.18em] text-slate-400">With images</p>
-              <p className="mt-3 text-2xl font-semibold text-slate-900">{totalImageCount}</p>
-              <p className="mt-1 text-sm text-slate-500">cards with preview art</p>
-            </div>
-          </div>
         </div>
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
