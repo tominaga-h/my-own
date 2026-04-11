@@ -48,9 +48,16 @@ const dotColor: Record<string, string> = {
 
 export default function TasksView({ rows, remindsMap, projectMap }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("all");
+  const [search, setSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState<number | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(
     rows.find((r) => r.status === "open")?.id ?? rows[0]?.id ?? null,
   );
+
+  const projectOptions = Object.entries(projectMap).map(([id, name]) => ({
+    id: Number(id),
+    name,
+  }));
 
   const counts = {
     all: rows.length,
@@ -62,9 +69,13 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
   const overdueCount = rows.filter((r) => isOverdue(r.due, r.status)).length;
   const importantCount = rows.filter((r) => r.important).length;
 
-  const filtered = rows.filter(
-    (row) => filter === "all" || row.status === filter,
-  );
+  const filtered = rows.filter((row) => {
+    if (filter !== "all" && row.status !== filter) return false;
+    if (search && !row.title.toLowerCase().includes(search.toLowerCase()))
+      return false;
+    if (projectFilter !== "all" && row.projectId !== projectFilter) return false;
+    return true;
+  });
   const selected =
     filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null;
   const reminds = selected ? (remindsMap[selected.id] ?? []) : [];
@@ -77,9 +88,9 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
   ];
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-3">
       {/* ── Toolbar ── */}
-      <div className="flex items-center justify-between rounded-2xl bg-[#ffffff]/70 px-5 py-2 backdrop-blur-[20px]">
+      <div className="flex items-center justify-between rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
         <div className="flex items-center gap-6">
           <h1 className="text-lg font-semibold tracking-tight text-[#191c1e]">
             Tasks
@@ -125,10 +136,50 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
         </div>
       </div>
 
+      {/* ── Search bar ── */}
+      <div className="flex items-center gap-3 rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
+        <svg
+          className="h-4 w-4 shrink-0 text-[#464555]/35"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+          />
+        </svg>
+        <input
+          type="text"
+          placeholder="タイトルで検索…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 bg-transparent text-[13px] text-[#191c1e] placeholder-[#464555]/30 outline-none"
+        />
+        <select
+          value={projectFilter === "all" ? "all" : String(projectFilter)}
+          onChange={(e) =>
+            setProjectFilter(
+              e.target.value === "all" ? "all" : Number(e.target.value),
+            )
+          }
+          className="rounded-lg bg-[#f2f4f6]/60 px-3 py-1.5 text-[13px] text-[#464555] outline-none"
+        >
+          <option value="all">All Projects</option>
+          {projectOptions.map((p) => (
+            <option key={p.id} value={String(p.id)}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {/* ── Body: List + Detail ── */}
-      <div className="grid gap-1.5 lg:grid-cols-[1fr_320px]">
+      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
         {/* Dense list */}
-        <div className="overflow-hidden rounded-2xl bg-[#ffffff]/70 backdrop-blur-[20px]">
+        <div className="overflow-hidden rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
           {/* Column headers */}
           <div className="flex items-center gap-3 bg-[#f2f4f6]/60 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[#464555]/50">
             <span className="w-5" />
@@ -232,7 +283,7 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
         </div>
 
         {/* ── Detail panel ── */}
-        <aside className="overflow-hidden rounded-2xl bg-[#ffffff]/70 backdrop-blur-[20px]">
+        <aside className="overflow-hidden rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
           {selected ? (
             <div className="flex h-full flex-col">
               {/* Header */}
