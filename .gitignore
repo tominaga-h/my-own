@@ -215,3 +215,5 @@ yarn-error.log*
 next-env.d.ts
 
 # private settigns
+
+.playwright-mcp/
