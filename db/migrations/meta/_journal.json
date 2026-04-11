@@ -22,6 +22,27 @@
       "when": 1775664213375,
       "tag": "0002_flashy_dark_phoenix",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1775754129439,
+      "tag": "0003_perfect_captain_midlands",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775755246081,
+      "tag": "0004_magenta_blue_marvel",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1775755382788,
+      "tag": "0005_noisy_kang",
+      "breakpoints": true
     }
   ]
 }
