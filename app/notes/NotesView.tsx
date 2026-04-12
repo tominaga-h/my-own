@@ -1,8 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { createNote } from "./actions";
+import { useEffect, useState } from "react";
 
 type NoteFilter = "all" | "slack" | "manual" | "project";
 
@@ -13,9 +11,14 @@ type NoteRow = {
   source: string;
   slackTs: string | null;
   projectId: number | null;
-  postedAt: Date;
-  createdAt: Date;
-  updatedAt: Date;
+  postedAt: string | Date;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+};
+
+type Props = {
+  rows: NoteRow[];
+  onCreateNote: (body: string) => Promise<NoteRow | null>;
 };
 
 function truncate(text: string, max = 240) {
@@ -32,14 +35,23 @@ function getNoteHeadline(body: string) {
   return firstLine ?? "Untitled note";
 }
 
-export default function NotesView({ rows }: { rows: NoteRow[] }) {
-  const router = useRouter();
+export default function NotesView({ rows, onCreateNote }: Props) {
   const [activeFilter, setActiveFilter] = useState<NoteFilter>("all");
-  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(
-    rows[0]?.id ?? null,
-  );
+  const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelectedNoteId(null);
+      return;
+    }
+
+    if (!selectedNoteId || !rows.some((row) => row.id === selectedNoteId)) {
+      setSelectedNoteId(rows[0].id);
+    }
+  }, [rows, selectedNoteId]);
 
   const filteredRows = rows.filter((row) => {
     if (activeFilter === "slack") return row.source === "slack";
@@ -165,14 +177,26 @@ export default function NotesView({ rows }: { rows: NoteRow[] }) {
             e.preventDefault();
             const body = draft.trim();
             if (!body || isPending) return;
-            startTransition(async () => {
-              const result = await createNote(body);
-              if (result.note) {
-                setDraft("");
-                setSelectedNoteId(result.note.id);
-                router.refresh();
-              }
-            });
+
+            setIsPending(true);
+            setError(null);
+            void onCreateNote(body)
+              .then((note) => {
+                if (note) {
+                  setDraft("");
+                  setSelectedNoteId(note.id);
+                }
+              })
+              .catch((submitError: unknown) => {
+                setError(
+                  submitError instanceof Error
+                    ? submitError.message
+                    : "保存に失敗しました",
+                );
+              })
+              .finally(() => {
+                setIsPending(false);
+              });
           }}
         >
           <textarea
@@ -189,7 +213,7 @@ export default function NotesView({ rows }: { rows: NoteRow[] }) {
           />
           <div className="mt-2 flex items-center justify-between">
             <span className="text-[11px] text-slate-400">
-              Cmd+Enter で投稿
+              {error ?? "Cmd+Enter で投稿"}
             </span>
             <button
               type="submit"

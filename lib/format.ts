@@ -1,6 +1,7 @@
-export function relativeTime(date: Date): string {
+export function relativeTime(date: Date | string): string {
+  const value = typeof date === "string" ? new Date(date) : date;
   const now = Date.now();
-  const diffMs = now - date.getTime();
+  const diffMs = now - value.getTime();
   const diffSec = Math.floor(diffMs / 1000);
 
   if (diffSec < 60) return "just now";

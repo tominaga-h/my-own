@@ -1,41 +1,44 @@
-import { desc, eq } from "drizzle-orm";
+"use client";
 
-import { db } from "../../lib/db";
-import { getAuthUser } from "../../lib/auth";
-import { tasks, taskReminds, projects } from "../../db/schema";
+import useSWR from "swr";
+
 import TasksView from "./TasksView";
 
-export default async function TasksPage() {
-  const databaseUserId = await getAuthUser();
+type TasksResponse = {
+  rows: Array<{
+    id: number;
+    userId: string;
+    title: string;
+    status: string;
+    source: string;
+    important: boolean;
+    projectId: number | null;
+    due: string | null;
+    doneAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  remindsMap: Record<number, string[]>;
+  projectMap: Record<number, string>;
+};
 
-  const [rows, reminds, projectRows] = await Promise.all([
-    db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.userId, databaseUserId))
-      .orderBy(desc(tasks.createdAt))
-      .limit(500),
-    db.select().from(taskReminds),
-    db
-      .select({ id: projects.id, name: projects.name })
-      .from(projects)
-      .where(eq(projects.userId, databaseUserId)),
-  ]);
-
-  const remindsMap: Record<number, string[]> = {};
-  for (const r of reminds) {
-    (remindsMap[r.taskId] ??= []).push(r.remindAt);
-  }
-
-  const projectMap: Record<number, string> = {};
-  for (const p of projectRows) {
-    projectMap[p.id] = p.name;
-  }
+export default function TasksPage() {
+  const { data, isLoading } = useSWR<TasksResponse>("/api/tasks");
 
   return (
     <main className="min-h-screen px-3 py-2 text-slate-800 sm:px-4 lg:px-5">
       <div className="mx-auto max-w-[1600px]">
-        <TasksView rows={rows} remindsMap={remindsMap} projectMap={projectMap} />
+        {isLoading && !data ? (
+          <div className="rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-4 text-sm text-[#464555]/50">
+            Loading tasks...
+          </div>
+        ) : (
+          <TasksView
+            rows={data?.rows ?? []}
+            remindsMap={data?.remindsMap ?? {}}
+            projectMap={data?.projectMap ?? {}}
+          />
+        )}
       </div>
     </main>
   );

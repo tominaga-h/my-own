@@ -1,27 +1,44 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { createNote } from "../notes/actions";
+import { useState } from "react";
+import { useSWRConfig } from "swr";
+
+import { apiFetchJson } from "../../lib/api-client";
+import { useApiKey } from "../providers";
+
+const NOTE_QUERY_KEYS = [
+  "/api/notes?limit=200",
+  "/api/data/stats",
+  "/api/data/recent",
+  "/api/data/projects",
+] as const;
 
 export default function QuickCapture() {
-  const router = useRouter();
+  const apiKey = useApiKey();
+  const { mutate } = useSWRConfig();
   const [draft, setDraft] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [isPending, setIsPending] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const body = draft.trim();
     if (!body || isPending) return;
-    startTransition(async () => {
-      const result = await createNote(body);
-      if (result.note) {
-        setDraft("");
-        setSaved(true);
-        router.refresh();
-        setTimeout(() => setSaved(false), 2000);
-      }
-    });
+
+    setIsPending(true);
+    try {
+      await apiFetchJson(apiKey, "/api/notes", {
+        method: "POST",
+        body: JSON.stringify({ body }),
+      });
+      setDraft("");
+      setSaved(true);
+      await Promise.all(NOTE_QUERY_KEYS.map((key) => mutate(key)));
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      setSaved(false);
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -46,7 +63,7 @@ export default function QuickCapture() {
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
-            handleSubmit();
+            void handleSubmit();
           }
         }}
       />

@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 
+import { useApiKey } from "../providers";
+
 const navItems = [
   { href: "/tasks", label: "Tasks" },
   { href: "/notes", label: "Notes" },
@@ -16,13 +18,19 @@ export default function Header() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isSyncing, setIsSyncing] = useState(false);
+  const apiKey = useApiKey();
 
   if (pathname === "/auth/signin") return null;
 
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch("/api/dev/slack/sync", { method: "POST" });
+      const res = await fetch("/api/dev/slack/sync", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
       if (!res.ok) throw new Error("sync failed");
       window.location.reload();
     } catch {
@@ -47,7 +55,7 @@ export default function Header() {
           <div className="flex items-center gap-3">
             <nav className="flex items-center gap-1">
               {navItems.map(({ href, label }) => {
-                const active = pathname.startsWith(href);
+                const active = pathname?.startsWith(href) ?? false;
                 return (
                   <Link
                     key={href}

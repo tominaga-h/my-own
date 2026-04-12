@@ -12,7 +12,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="ja">
       <body>
-        <Providers>
+        <Providers apiKey={process.env.API_KEY ?? ""}>
           <Header />
           {children}
         </Providers>
@@ -20,4 +20,3 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     </html>
   );
 }
-

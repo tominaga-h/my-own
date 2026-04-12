@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type StatusFilter = "all" | "open" | "done" | "closed";
 
@@ -14,8 +14,8 @@ type TaskRow = {
   projectId: number | null;
   due: string | null;
   doneAt: string | null;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 };
 
 type Props = {
@@ -50,9 +50,18 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState<number | "all">("all");
-  const [selectedId, setSelectedId] = useState<number | null>(
-    rows.find((r) => r.status === "open")?.id ?? rows[0]?.id ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (rows.length === 0) {
+      setSelectedId(null);
+      return;
+    }
+
+    if (!selectedId || !rows.some((row) => row.id === selectedId)) {
+      setSelectedId(rows.find((row) => row.status === "open")?.id ?? rows[0].id);
+    }
+  }, [rows, selectedId]);
 
   const projectOptions = Object.entries(projectMap).map(([id, name]) => ({
     id: Number(id),

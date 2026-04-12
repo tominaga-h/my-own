@@ -1,9 +1,7 @@
-/* eslint-disable @next/next/no-img-element */
-import { and, desc, eq } from "drizzle-orm";
+"use client";
 
-import { db } from "../../lib/db";
-import { getAuthUser } from "../../lib/auth";
-import { links, syncStates } from "../../db/schema";
+/* eslint-disable @next/next/no-img-element */
+import useSWR from "swr";
 
 type SlackAttachment = {
   title?: string;
@@ -16,6 +14,19 @@ type SlackAttachment = {
   fallback?: string;
 };
 
+type LinksResponse = {
+  links: Array<{
+    id: number;
+    url: string;
+    title: string | null;
+    description: string | null;
+    slackAttachments: unknown[] | null;
+    createdAt: string;
+    postedAt: string;
+  }>;
+  lastSyncAt: string | null;
+};
+
 function asAttachments(value: unknown) {
   return Array.isArray(value) ? (value as SlackAttachment[]) : [];
 }
@@ -25,23 +36,10 @@ function truncate(text: string, max = 180) {
   return `${text.slice(0, max - 1)}…`;
 }
 
-export default async function LinksPage() {
-  const databaseUserId = await getAuthUser();
-  const [rows, syncRow] = await Promise.all([
-    db
-      .select()
-      .from(links)
-      .where(eq(links.userId, databaseUserId))
-      .orderBy(desc(links.postedAt))
-      .limit(100),
-    db
-      .select({ updatedAt: syncStates.updatedAt })
-      .from(syncStates)
-      .where(and(eq(syncStates.userId, databaseUserId), eq(syncStates.key, "slack_last_ts")))
-      .then((r) => r[0] ?? null),
-  ]);
-  const lastSyncedAt = syncRow?.updatedAt ?? null;
-
+export default function LinksPage() {
+  const { data } = useSWR<LinksResponse>("/api/links?limit=100");
+  const rows = data?.links ?? [];
+  const lastSyncedAt = data?.lastSyncAt ?? null;
 
   return (
     <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
@@ -54,12 +52,14 @@ export default async function LinksPage() {
               </h1>
               {lastSyncedAt && (
                 <p className="mt-1 text-sm text-slate-400">
-                  最終同期: {new Date(lastSyncedAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo" })}
+                  最終同期:{" "}
+                  {new Date(lastSyncedAt).toLocaleString("ja-JP", {
+                    timeZone: "Asia/Tokyo",
+                  })}
                 </p>
               )}
             </div>
           </div>
-
         </div>
 
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -97,7 +97,7 @@ export default async function LinksPage() {
                     </div>
                   </a>
                 ) : (
-                  <div className="flex relative aspect-[40/21] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
+                  <div className="relative flex aspect-[40/21] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
                     <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
                       {serviceName}
                     </div>
@@ -112,7 +112,7 @@ export default async function LinksPage() {
                     <span>{new Date(row.createdAt).toLocaleDateString("ja-JP")}</span>
                   </div>
 
-                  <div className="space-y-2 min-h-[232px]">
+                  <div className="min-h-[232px] space-y-2">
                     <h2 className="text-lg font-semibold leading-7 text-slate-900">
                       <a
                         href={targetUrl}
@@ -149,8 +149,13 @@ export default async function LinksPage() {
             );
           })}
 
-          {rows.length === 0 ? (
-            <div className="md:col-span-2 xl:col-span-3 rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm">
+          {!data && (
+            <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
+              Loading links...
+            </div>
+          )}
+          {data && rows.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
               まだリンクがありません。Slack 同期を先に走らせてください。
             </div>
           ) : null}
