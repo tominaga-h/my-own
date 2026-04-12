@@ -47,7 +47,7 @@ const dotColor: Record<string, string> = {
 };
 
 export default function TasksView({ rows, remindsMap, projectMap }: Props) {
-  const [filter, setFilter] = useState<StatusFilter>("all");
+  const [filter, setFilter] = useState<StatusFilter>("open");
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState<number | "all">("all");
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -98,13 +98,29 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      {/* ── Toolbar ── */}
-      <div className="flex items-center justify-between rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
-        <div className="flex items-center gap-6">
-          <h1 className="text-lg font-semibold tracking-tight text-[#191c1e]">
+      {/* ── Page Header ── */}
+      <div className="flex flex-wrap items-baseline justify-between gap-3 px-1 py-2">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
             Tasks
           </h1>
-          <div className="flex items-center gap-0.5">
+          <p className="mt-1 text-sm text-slate-400">{counts.all} tasks total</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-4 text-[11px] tracking-[0.06em] text-[#464555]/60">
+          <span>{counts.open} open</span>
+          {importantCount > 0 && (
+            <span className="text-amber-500">{importantCount} important</span>
+          )}
+          {overdueCount > 0 && (
+            <span className="text-red-400">{overdueCount} overdue</span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Filter Box ── */}
+      <div className="rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-0.5">
             {tabs.map((t) => {
               const on = t.key === filter;
               return (
@@ -132,57 +148,49 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
               );
             })}
           </div>
-        </div>
 
-        <div className="flex items-center gap-4 text-[11px] tracking-[0.06em] text-[#464555]/60">
-          <span>{counts.open} open</span>
-          {importantCount > 0 && (
-            <span className="text-amber-500">{importantCount} important</span>
-          )}
-          {overdueCount > 0 && (
-            <span className="text-red-400">{overdueCount} overdue</span>
-          )}
-        </div>
-      </div>
+          <div className="h-6 w-px bg-[#e6e8ea]/80" />
 
-      {/* ── Search bar ── */}
-      <div className="flex items-center gap-3 rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
-        <svg
-          className="h-4 w-4 shrink-0 text-[#464555]/35"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-          />
-        </svg>
-        <input
-          type="text"
-          placeholder="タイトルで検索…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="flex-1 bg-transparent text-[13px] text-[#191c1e] placeholder-[#464555]/30 outline-none"
-        />
-        <select
-          value={projectFilter === "all" ? "all" : String(projectFilter)}
-          onChange={(e) =>
-            setProjectFilter(
-              e.target.value === "all" ? "all" : Number(e.target.value),
-            )
-          }
-          className="rounded-lg bg-[#f2f4f6]/60 px-3 py-1.5 text-[13px] text-[#464555] outline-none"
-        >
-          <option value="all">All Projects</option>
-          {projectOptions.map((p) => (
-            <option key={p.id} value={String(p.id)}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+          <div className="flex min-w-[240px] flex-1 items-center gap-3 rounded-xl border border-[#e6e8ea]/60 bg-white/80 px-3 py-2">
+            <svg
+              className="h-4 w-4 shrink-0 text-[#464555]/35"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+              />
+            </svg>
+            <input
+              type="text"
+              placeholder="タイトルで検索…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#191c1e] placeholder-[#464555]/30 outline-none"
+            />
+          </div>
+
+          <select
+            value={projectFilter === "all" ? "all" : String(projectFilter)}
+            onChange={(e) =>
+              setProjectFilter(
+                e.target.value === "all" ? "all" : Number(e.target.value),
+              )
+            }
+            className="rounded-xl border border-[#e6e8ea]/60 bg-white/80 px-3 py-2 text-[13px] text-[#464555] outline-none"
+          >
+            <option value="all">All Projects</option>
+            {projectOptions.map((p) => (
+              <option key={p.id} value={String(p.id)}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* ── Body: List + Detail ── */}
