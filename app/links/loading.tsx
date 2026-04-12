@@ -1,7 +1,7 @@
 export default function Loading() {
   return (
-    <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 animate-pulse">
+    <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-3 animate-pulse">
         <div className="px-1 py-2">
           <div className="h-9 w-40 rounded bg-slate-200" />
           <div className="mt-2 h-4 w-48 rounded bg-slate-100" />

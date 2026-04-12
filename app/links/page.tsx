@@ -42,23 +42,21 @@ export default function LinksPage() {
   const lastSyncedAt = data?.lastSyncAt ?? null;
 
   return (
-    <main className="min-h-screen px-4 py-6 text-slate-800 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <div className="px-1 py-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
-                My Links
-              </h1>
-              {lastSyncedAt && (
-                <p className="mt-1 text-sm text-slate-400">
-                  最終同期:{" "}
-                  {new Date(lastSyncedAt).toLocaleString("ja-JP", {
-                    timeZone: "Asia/Tokyo",
-                  })}
-                </p>
-              )}
-            </div>
+    <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
+        <div className="flex flex-wrap items-baseline justify-between gap-3 px-1 py-2">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+              My Links
+            </h1>
+            {lastSyncedAt && (
+              <p className="mt-1 text-sm text-slate-400">
+                最終同期:{" "}
+                {new Date(lastSyncedAt).toLocaleString("ja-JP", {
+                  timeZone: "Asia/Tokyo",
+                })}
+              </p>
+            )}
           </div>
         </div>
 
