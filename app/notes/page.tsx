@@ -5,8 +5,6 @@ import { getAuthUser } from "../../lib/auth";
 import { notes, syncStates } from "../../db/schema";
 import NotesView from "./NotesView";
 
-export const dynamic = "force-dynamic";
-
 export default async function NotesPage() {
   const databaseUserId = await getAuthUser();
   const [rows, syncRow] = await Promise.all([

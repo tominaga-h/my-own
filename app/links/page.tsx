@@ -25,8 +25,6 @@ function truncate(text: string, max = 180) {
   return `${text.slice(0, max - 1)}…`;
 }
 
-export const dynamic = "force-dynamic";
-
 export default async function LinksPage() {
   const databaseUserId = await getAuthUser();
   const [rows, syncRow] = await Promise.all([
