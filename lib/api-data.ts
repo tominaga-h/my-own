@@ -111,7 +111,7 @@ export async function listTasks(userId: string) {
       .select()
       .from(tasks)
       .where(eq(tasks.userId, userId))
-      .orderBy(desc(tasks.createdAt))
+      .orderBy(desc(tasks.id))
       .limit(500),
     db.select().from(taskReminds),
     db
