@@ -50,6 +50,20 @@ export default function NotesPage() {
     return result.note ?? null;
   }
 
+  async function handleUpdateNote(id: number, body: string) {
+    const result = await apiFetchJson<{ note: NotesResponse["notes"][number] }>(
+      apiKey,
+      `/api/notes/${id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ body }),
+      },
+    );
+
+    await Promise.all(NOTE_QUERY_KEYS.map((key) => mutate(key)));
+    return result.note ?? null;
+  }
+
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
@@ -72,7 +86,11 @@ export default function NotesPage() {
           </span>
         </div>
 
-        <NotesView rows={rows} onCreateNote={handleCreateNote} />
+        <NotesView
+          rows={rows}
+          onCreateNote={handleCreateNote}
+          onUpdateNote={handleUpdateNote}
+        />
       </div>
     </main>
   );

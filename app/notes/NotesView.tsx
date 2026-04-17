@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type NoteFilter = "all" | "slack" | "manual" | "project";
 
@@ -19,6 +21,7 @@ type NoteRow = {
 type Props = {
   rows: NoteRow[];
   onCreateNote: (body: string) => Promise<NoteRow | null>;
+  onUpdateNote: (id: number, body: string) => Promise<NoteRow | null>;
 };
 
 function truncate(text: string, max = 240) {
@@ -35,12 +38,20 @@ function getNoteHeadline(body: string) {
   return firstLine ?? "Untitled note";
 }
 
-export default function NotesView({ rows, onCreateNote }: Props) {
+export default function NotesView({
+  rows,
+  onCreateNote,
+  onUpdateNote,
+}: Props) {
   const [activeFilter, setActiveFilter] = useState<NoteFilter>("all");
   const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
   const [draft, setDraft] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingNoteId, setEditingNoteId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     if (rows.length === 0) {
@@ -52,6 +63,11 @@ export default function NotesView({ rows, onCreateNote }: Props) {
       setSelectedNoteId(rows[0].id);
     }
   }, [rows, selectedNoteId]);
+
+  useEffect(() => {
+    setEditingNoteId(null);
+    setEditError(null);
+  }, [selectedNoteId]);
 
   const filteredRows = rows.filter((row) => {
     if (activeFilter === "slack") return row.source === "slack";
@@ -338,12 +354,204 @@ export default function NotesView({ rows, onCreateNote }: Props) {
 
             <div className="flex-1 space-y-4 px-5 py-5">
               <div className="rounded-md border border-slate-200 bg-slate-50/80 p-4">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                  Body
-                </p>
-                <p className="mt-3 whitespace-pre-wrap text-[15px] leading-7 text-slate-700">
-                  {selectedRow.body}
-                </p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    Body
+                  </p>
+                  {editingNoteId === selectedRow.id ? null : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingNoteId(selectedRow.id);
+                        setEditDraft(selectedRow.body);
+                        setEditError(null);
+                      }}
+                      className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-600 transition hover:border-indigo-300 hover:text-indigo-600"
+                    >
+                      編集
+                    </button>
+                  )}
+                </div>
+                {editingNoteId === selectedRow.id ? (
+                  <form
+                    className="mt-3 space-y-2"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const body = editDraft.trim();
+                      if (!body || isSavingEdit) return;
+
+                      setIsSavingEdit(true);
+                      setEditError(null);
+                      void onUpdateNote(selectedRow.id, body)
+                        .then((note) => {
+                          if (note) {
+                            setEditingNoteId(null);
+                          }
+                        })
+                        .catch((submitError: unknown) => {
+                          setEditError(
+                            submitError instanceof Error
+                              ? submitError.message
+                              : "更新に失敗しました",
+                          );
+                        })
+                        .finally(() => {
+                          setIsSavingEdit(false);
+                        });
+                    }}
+                  >
+                    <textarea
+                      className="w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-[15px] leading-7 text-slate-800 focus:border-indigo-300 focus:outline-none focus:ring-1 focus:ring-indigo-300"
+                      rows={8}
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          e.currentTarget.form?.requestSubmit();
+                        }
+                        if (e.key === "Escape") {
+                          setEditingNoteId(null);
+                          setEditError(null);
+                        }
+                      }}
+                    />
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-slate-400">
+                        {editError ?? "Cmd+Enter で保存 / Esc でキャンセル"}
+                      </span>
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingNoteId(null);
+                            setEditError(null);
+                          }}
+                          className="rounded-full border border-slate-200 bg-white px-4 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                        >
+                          キャンセル
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!editDraft.trim() || isSavingEdit}
+                          className="rounded-full border border-indigo-500 bg-indigo-600 px-5 py-1.5 text-xs font-medium text-white shadow-sm transition hover:opacity-80 disabled:opacity-40"
+                        >
+                          {isSavingEdit ? "保存中..." : "保存"}
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                ) : (
+                  <div className="prose-note mt-3 text-[15px] leading-7 text-slate-700">
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        h1: (props) => (
+                          <h1
+                            className="mt-4 mb-2 text-2xl font-semibold text-slate-900 first:mt-0"
+                            {...props}
+                          />
+                        ),
+                        h2: (props) => (
+                          <h2
+                            className="mt-4 mb-2 text-xl font-semibold text-slate-900 first:mt-0"
+                            {...props}
+                          />
+                        ),
+                        h3: (props) => (
+                          <h3
+                            className="mt-3 mb-1.5 text-lg font-semibold text-slate-900 first:mt-0"
+                            {...props}
+                          />
+                        ),
+                        p: (props) => (
+                          <p className="my-2 whitespace-pre-wrap" {...props} />
+                        ),
+                        ul: (props) => (
+                          <ul
+                            className="my-2 list-disc space-y-1 pl-6"
+                            {...props}
+                          />
+                        ),
+                        ol: (props) => (
+                          <ol
+                            className="my-2 list-decimal space-y-1 pl-6"
+                            {...props}
+                          />
+                        ),
+                        li: (props) => <li className="leading-7" {...props} />,
+                        a: (props) => (
+                          <a
+                            className="text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            {...props}
+                          />
+                        ),
+                        code: ({ className, children, ...rest }) => {
+                          const isBlock = /language-/.test(className ?? "");
+                          if (isBlock) {
+                            return (
+                              <code
+                                className={`${className ?? ""} block`}
+                                {...rest}
+                              >
+                                {children}
+                              </code>
+                            );
+                          }
+                          return (
+                            <code
+                              className="rounded bg-slate-200/60 px-1.5 py-0.5 font-mono text-[13px] text-slate-800"
+                              {...rest}
+                            >
+                              {children}
+                            </code>
+                          );
+                        },
+                        pre: (props) => (
+                          <pre
+                            className="my-3 overflow-x-auto rounded-md bg-slate-900 p-3 font-mono text-[13px] leading-6 text-slate-100"
+                            {...props}
+                          />
+                        ),
+                        blockquote: (props) => (
+                          <blockquote
+                            className="my-3 border-l-4 border-indigo-200 bg-white/60 px-4 py-1 text-slate-600"
+                            {...props}
+                          />
+                        ),
+                        hr: (props) => (
+                          <hr
+                            className="my-4 border-slate-200"
+                            {...props}
+                          />
+                        ),
+                        table: (props) => (
+                          <div className="my-3 overflow-x-auto">
+                            <table
+                              className="min-w-full border-collapse text-sm"
+                              {...props}
+                            />
+                          </div>
+                        ),
+                        th: (props) => (
+                          <th
+                            className="border border-slate-200 bg-slate-100 px-3 py-1.5 text-left font-semibold"
+                            {...props}
+                          />
+                        ),
+                        td: (props) => (
+                          <td
+                            className="border border-slate-200 px-3 py-1.5"
+                            {...props}
+                          />
+                        ),
+                      }}
+                    >
+                      {selectedRow.body}
+                    </ReactMarkdown>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
