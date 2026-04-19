@@ -5,8 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
+import { mutate } from "swr";
 
 import { useApiKey } from "../providers";
+import { runAllSync } from "../../lib/sync";
 
 const navItems = [
   { href: "/tasks", label: "Tasks" },
@@ -25,17 +27,16 @@ export default function Header() {
   const handleSync = async () => {
     setIsSyncing(true);
     try {
-      const res = await fetch("/api/dev/slack/sync", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-        },
-      });
-      if (!res.ok) throw new Error("sync failed");
-      window.location.reload();
-    } catch {
+      const failures = await runAllSync(apiKey);
+      if (failures.length > 0) {
+        alert(`同期に失敗しました: ${failures.join(", ")}`);
+        return;
+      }
+      // mount 中の SWR key を全て revalidate (notes / links / tasks)。
+      // reload は使わない: クライアント状態を保ったまま最新データに差し替える。
+      await mutate(() => true);
+    } finally {
       setIsSyncing(false);
-      alert("同期に失敗しました");
     }
   };
 
@@ -77,7 +78,7 @@ export default function Header() {
               <button
                 onClick={handleSync}
                 disabled={isSyncing}
-                aria-label="Slackを同期"
+                aria-label="Slackとタスクを同期"
                 className="flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isSyncing ? (

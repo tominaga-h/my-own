@@ -1,36 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+
+import type { TaskDto } from "../../lib/my-task-sync";
 
 type StatusFilter = "all" | "open" | "done" | "closed";
 
-type TaskRow = {
-  id: number;
-  userId: string;
-  title: string;
-  status: string;
-  source: string;
-  important: boolean;
-  projectId: number | null;
-  due: string | null;
-  doneAt: string | null;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-};
-
 type Props = {
-  rows: TaskRow[];
-  remindsMap: Record<number, string[]>;
-  projectMap: Record<number, string>;
+  tasks: TaskDto[];
 };
 
-function fmtShort(d: string | Date | null) {
+function fmtShort(d: string | null) {
   if (!d) return "—";
   const date = new Date(d);
   return `${date.getMonth() + 1}/${date.getDate()}`;
 }
 
-function fmtFull(d: string | Date | null) {
+function fmtFull(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleDateString("ja-JP");
 }
@@ -46,48 +32,103 @@ const dotColor: Record<string, string> = {
   closed: "bg-[#e6e8ea]",
 };
 
-export default function TasksView({ rows, remindsMap, projectMap }: Props) {
+type ProjectFilter =
+  | { kind: "all" }
+  | { kind: "none" }
+  | { kind: "named"; name: string };
+
+const PROJECT_FILTER_ALL: ProjectFilter = { kind: "all" };
+const PROJECT_FILTER_NONE: ProjectFilter = { kind: "none" };
+const PROJECT_FILTER_ALL_VALUE = "__all__";
+const PROJECT_FILTER_NONE_VALUE = "__none__";
+
+function projectFilterToValue(f: ProjectFilter): string {
+  if (f.kind === "all") return PROJECT_FILTER_ALL_VALUE;
+  if (f.kind === "none") return PROJECT_FILTER_NONE_VALUE;
+  return `name:${f.name}`;
+}
+
+function valueToProjectFilter(value: string): ProjectFilter {
+  if (value === PROJECT_FILTER_ALL_VALUE) return PROJECT_FILTER_ALL;
+  if (value === PROJECT_FILTER_NONE_VALUE) return PROJECT_FILTER_NONE;
+  if (value.startsWith("name:")) return { kind: "named", name: value.slice(5) };
+  return PROJECT_FILTER_ALL;
+}
+
+export default function TasksView({ tasks }: Props) {
   const [filter, setFilter] = useState<StatusFilter>("open");
   const [search, setSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState<number | "all">("all");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [projectFilter, setProjectFilter] = useState<ProjectFilter>(
+    PROJECT_FILTER_ALL,
+  );
+  const [selectedTaskNumber, setSelectedTaskNumber] = useState<number | null>(
+    null,
+  );
 
   useEffect(() => {
-    if (rows.length === 0) {
-      setSelectedId(null);
+    if (tasks.length === 0) {
+      setSelectedTaskNumber(null);
       return;
     }
 
-    if (!selectedId || !rows.some((row) => row.id === selectedId)) {
-      setSelectedId(rows.find((row) => row.status === "open")?.id ?? rows[0].id);
+    if (
+      !selectedTaskNumber ||
+      !tasks.some((t) => t.taskNumber === selectedTaskNumber)
+    ) {
+      setSelectedTaskNumber(
+        tasks.find((t) => t.status === "open")?.taskNumber ??
+          tasks[0].taskNumber,
+      );
     }
-  }, [rows, selectedId]);
+  }, [tasks, selectedTaskNumber]);
 
-  const projectOptions = Object.entries(projectMap).map(([id, name]) => ({
-    id: Number(id),
-    name,
-  }));
+  const projectOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const t of tasks) {
+      if (t.projectName) names.add(t.projectName);
+    }
+    return Array.from(names).sort();
+  }, [tasks]);
 
-  const counts = {
-    all: rows.length,
-    open: rows.filter((r) => r.status === "open").length,
-    done: rows.filter((r) => r.status === "done").length,
-    closed: rows.filter((r) => r.status === "closed").length,
-  };
+  const { counts, overdueCount, importantCount } = useMemo(() => {
+    let open = 0;
+    let done = 0;
+    let closed = 0;
+    let overdue = 0;
+    let important = 0;
+    for (const t of tasks) {
+      if (t.status === "open") open++;
+      else if (t.status === "done") done++;
+      else if (t.status === "closed") closed++;
+      if (t.important) important++;
+      if (isOverdue(t.due, t.status)) overdue++;
+    }
+    return {
+      counts: { all: tasks.length, open, done, closed },
+      overdueCount: overdue,
+      importantCount: important,
+    };
+  }, [tasks]);
 
-  const overdueCount = rows.filter((r) => isOverdue(r.due, r.status)).length;
-  const importantCount = rows.filter((r) => r.important).length;
-
-  const filtered = rows.filter((row) => {
-    if (filter !== "all" && row.status !== filter) return false;
-    if (search && !row.title.toLowerCase().includes(search.toLowerCase()))
-      return false;
-    if (projectFilter !== "all" && row.projectId !== projectFilter) return false;
-    return true;
-  });
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return tasks.filter((task) => {
+      if (filter !== "all" && task.status !== filter) return false;
+      if (q && !task.title.toLowerCase().includes(q)) return false;
+      if (projectFilter.kind === "none" && task.projectName) return false;
+      if (
+        projectFilter.kind === "named" &&
+        task.projectName !== projectFilter.name
+      )
+        return false;
+      return true;
+    });
+  }, [tasks, filter, search, projectFilter]);
   const selected =
-    filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null;
-  const reminds = selected ? (remindsMap[selected.id] ?? []) : [];
+    filtered.find((t) => t.taskNumber === selectedTaskNumber) ??
+    filtered[0] ??
+    null;
+  const reminds = selected?.reminds ?? [];
 
   const tabs: Array<{ key: StatusFilter; label: string; count: number }> = [
     { key: "all", label: "All", count: counts.all },
@@ -175,18 +216,17 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
           </div>
 
           <select
-            value={projectFilter === "all" ? "all" : String(projectFilter)}
+            value={projectFilterToValue(projectFilter)}
             onChange={(e) =>
-              setProjectFilter(
-                e.target.value === "all" ? "all" : Number(e.target.value),
-              )
+              setProjectFilter(valueToProjectFilter(e.target.value))
             }
             className="rounded-xl border border-[#e6e8ea]/60 bg-white/80 px-3 py-2 text-[13px] text-[#464555] outline-none"
           >
-            <option value="all">All Projects</option>
-            {projectOptions.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                {p.name}
+            <option value={PROJECT_FILTER_ALL_VALUE}>All Projects</option>
+            <option value={PROJECT_FILTER_NONE_VALUE}>(no project)</option>
+            {projectOptions.map((name) => (
+              <option key={name} value={`name:${name}`}>
+                {name}
               </option>
             ))}
           </select>
@@ -207,19 +247,16 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
           </div>
 
           <div className="max-h-[calc(100vh-180px)] overflow-auto">
-            {filtered.map((row) => {
-              const on = row.id === selected?.id;
-              const overdue = isOverdue(row.due, row.status);
-              const project = row.projectId
-                ? projectMap[row.projectId]
-                : null;
-              const hasReminds = (remindsMap[row.id]?.length ?? 0) > 0;
+            {filtered.map((task) => {
+              const on = task.taskNumber === selected?.taskNumber;
+              const overdue = isOverdue(task.due, task.status);
+              const hasReminds = task.reminds.length > 0;
 
               return (
                 <button
-                  key={row.id}
+                  key={task.taskNumber}
                   type="button"
-                  onClick={() => setSelectedId(row.id)}
+                  onClick={() => setSelectedTaskNumber(task.taskNumber)}
                   className={[
                     "flex w-full items-center gap-3 px-5 py-[7px] text-left transition-colors",
                     on
@@ -232,19 +269,19 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
                     <span
                       className={[
                         "inline-block h-[7px] w-[7px] rounded-full",
-                        dotColor[row.status] ?? "bg-[#e6e8ea]",
+                        dotColor[task.status] ?? "bg-[#e6e8ea]",
                       ].join(" ")}
                     />
                   </span>
 
-                  {/* ID */}
+                  {/* Number */}
                   <span className="w-10 text-[12px] tabular-nums text-[#464555]/40">
-                    {row.id}
+                    {task.taskNumber}
                   </span>
 
                   {/* Title + inline badges */}
                   <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                    {row.important && (
+                    {task.important && (
                       <span className="shrink-0 text-[11px] font-bold text-amber-500">
                         !
                       </span>
@@ -252,12 +289,12 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
                     <span
                       className={[
                         "truncate text-[13px] leading-tight",
-                        row.status === "done"
+                        task.status === "done"
                           ? "text-[#464555]/35 line-through decoration-[#464555]/15"
                           : "text-[#191c1e]",
                       ].join(" ")}
                     >
-                      {row.title}
+                      {task.title}
                     </span>
                     {hasReminds && (
                       <span className="shrink-0 rounded-[4px] bg-amber-50 px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-amber-500">
@@ -280,12 +317,12 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
                         : "text-[#464555]/35",
                     ].join(" ")}
                   >
-                    {row.due ? fmtShort(row.due) : "—"}
+                    {task.due ? fmtShort(task.due) : "—"}
                   </span>
 
                   {/* Project */}
                   <span className="w-20 truncate text-right text-[11px] text-[#464555]/35">
-                    {project ?? "—"}
+                    {task.projectName ?? "—"}
                   </span>
                 </button>
               );
@@ -313,7 +350,7 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
                     ].join(" ")}
                   />
                   <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#464555]/45">
-                    #{selected.id} · {selected.status}
+                    #{selected.taskNumber} · {selected.status}
                   </span>
                   <span className="ml-auto rounded-[5px] bg-[#e6e8ea]/50 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#464555]/45">
                     {selected.source}
@@ -366,13 +403,13 @@ export default function TasksView({ rows, remindsMap, projectMap }: Props) {
                   </div>
                 )}
 
-                {selected.projectId && projectMap[selected.projectId] && (
+                {selected.projectName && (
                   <div className="rounded-xl bg-[#f2f4f6]/60 px-3 py-2">
                     <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#464555]/40">
                       Project
                     </p>
                     <p className="mt-0.5 text-[13px] font-medium text-[#191c1e]">
-                      {projectMap[selected.projectId]}
+                      {selected.projectName}
                     </p>
                   </div>
                 )}
