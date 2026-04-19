@@ -217,4 +217,3 @@ next-env.d.ts
 # private settigns
 
 .playwright-mcp/
-tasks
