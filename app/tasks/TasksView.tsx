@@ -21,6 +21,7 @@ import { EditModal } from "./components/EditModal";
 import { ModalShell } from "./components/ModalShell";
 import { Stat } from "./components/Stat";
 import { TaskRow } from "./components/TaskRow";
+import { formatApiError } from "./lib/api-error";
 import { isOverdue } from "./lib/date";
 import { groupTasks, type StatusFilter } from "./lib/group-tasks";
 
@@ -31,6 +32,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     useState<ProjectFilter>(PROJECT_FILTER_ALL);
   const [openTaskNumber, setOpenTaskNumber] = useState<number | null>(null);
   const [mode, setMode] = useState<"detail" | "edit">("detail");
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const apiKey = useApiKey();
   const { data: projectsData } = useSWR<ProjectListResponse>("/api/projects");
@@ -97,6 +99,16 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     await mutate("/api/tasks");
   }
 
+  // I2: toggle / quick action の失敗をユーザーに通知（EditModal は専用 UI があるので別経路）
+  async function safePatch(taskNumber: number, patch: TaskPatchBody) {
+    try {
+      await patchTask(taskNumber, patch);
+      setActionError(null);
+    } catch (e) {
+      setActionError(formatApiError(e));
+    }
+  }
+
   const tabs: Array<{ key: StatusFilter; label: string; count: number }> = [
     { key: "open", label: "Open", count: counts.open },
     { key: "done", label: "Done", count: counts.done },
@@ -106,6 +118,55 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {actionError && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: 12,
+            background: "rgba(254,242,242,.9)",
+            boxShadow: "inset 0 0 0 1px rgba(254,202,202,.8)",
+            color: "#991b1b",
+            fontSize: 13,
+          }}
+        >
+          <svg
+            width={14}
+            height={14}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ flexShrink: 0 }}
+          >
+            <circle cx={12} cy={12} r={10} />
+            <line x1={12} y1={8} x2={12} y2={12} />
+            <line x1={12} y1={16} x2={12.01} y2={16} />
+          </svg>
+          <span style={{ flex: 1 }}>{actionError}</span>
+          <button
+            type="button"
+            aria-label="閉じる"
+            onClick={() => setActionError(null)}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              background: "transparent",
+              color: "#991b1b",
+              fontSize: 16,
+              lineHeight: 1,
+              padding: "2px 6px",
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
       {/* Page header */}
       <header
         style={{
@@ -248,10 +309,10 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
                             status: "done",
                             doneAt: new Date().toISOString(),
                           };
-                    await patchTask(r.taskNumber, next);
+                    await safePatch(r.taskNumber, next);
                   }}
                   onToggleImportant={async () => {
-                    await patchTask(r.taskNumber, { important: !r.important });
+                    await safePatch(r.taskNumber, { important: !r.important });
                   }}
                 />
               ))}
@@ -268,7 +329,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
               onEdit={() => setMode("edit")}
               onClose={closeModal}
               onQuickAction={async (patch) => {
-                await patchTask(openTask.taskNumber, patch);
+                await safePatch(openTask.taskNumber, patch);
               }}
             />
           ) : (

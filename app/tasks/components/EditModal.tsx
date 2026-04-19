@@ -2,24 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError } from "../../../lib/api-client";
 import type {
   TaskDto,
   TaskPatchBody,
   TaskStatus,
 } from "../../../lib/my-task-sync";
+import { formatApiError } from "../lib/api-error";
 import { CHEVRON_DATA_URL } from "../lib/chevron";
 import { toDateInputValue } from "../lib/date";
-
-function formatSaveError(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.status === 400) return "入力内容を確認してください";
-    if (e.status === 401 || e.status === 403) return "認証エラー";
-    if (e.status === 502) return "my-task-sync に到達できません";
-    return `保存に失敗しました (HTTP ${e.status})`;
-  }
-  return "保存に失敗しました";
-}
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -66,7 +56,18 @@ export function EditModal({
     toDateInputValue(sel.due) !== draft.due ||
     (sel.projectName ?? "") !== draft.projectName;
 
+  // I3: ユーザーがフォームを編集したらエラー表示をクリア（"saved" 中は保持）
+  const updateDraft = (patch: Partial<typeof draft>) => {
+    setDraft((prev) => ({ ...prev, ...patch }));
+    if (saveState === "error") {
+      setSaveState("idle");
+      setSaveError(null);
+    }
+  };
+
   const save = async () => {
+    // I1: "saved"（400ms 窓）中の再実行を防止
+    if (!dirty || saveState === "saving" || saveState === "saved") return;
     setSaveState("saving");
     setSaveError(null);
     const patch: TaskPatchBody = {};
@@ -100,21 +101,24 @@ export function EditModal({
       }, 400);
     } catch (e) {
       setSaveState("error");
-      setSaveError(formatSaveError(e));
+      setSaveError(formatApiError(e, "保存"));
     }
   };
+
+  // I4: keydown listener を毎キーストロークで rebind しないよう save を ref 経由で参照
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
         e.preventDefault();
-        if (dirty && saveState !== "saving") void save();
+        void saveRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dirty, saveState, draft]);
+  }, []);
 
   const saving = saveState === "saving";
   const saved = saveState === "saved";
@@ -232,7 +236,7 @@ export function EditModal({
           <input
             autoFocus
             value={draft.title}
-            onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+            onChange={(e) => updateDraft({ title: e.target.value })}
             placeholder="タスクのタイトル"
             style={{ ...inputStyle, fontSize: 16, fontWeight: 500 }}
           />
@@ -253,7 +257,7 @@ export function EditModal({
                 <button
                   key={s.k}
                   type="button"
-                  onClick={() => setDraft({ ...draft, status: s.k })}
+                  onClick={() => updateDraft({ status: s.k })}
                   style={{
                     flex: 1,
                     border: "none",
@@ -309,7 +313,7 @@ export function EditModal({
             <input
               type="date"
               value={draft.due}
-              onChange={(e) => setDraft({ ...draft, due: e.target.value })}
+              onChange={(e) => updateDraft({ due: e.target.value })}
               style={inputStyle}
             />
           </div>
@@ -318,7 +322,7 @@ export function EditModal({
             <select
               value={draft.projectName}
               onChange={(e) =>
-                setDraft({ ...draft, projectName: e.target.value })
+                updateDraft({ projectName: e.target.value })
               }
               style={{
                 ...inputStyle,
@@ -381,7 +385,7 @@ export function EditModal({
           <button
             type="button"
             aria-pressed={draft.important}
-            onClick={() => setDraft({ ...draft, important: !draft.important })}
+            onClick={() => updateDraft({ important: !draft.important })}
             style={{
               position: "relative",
               width: 42,
