@@ -7,7 +7,7 @@ import type {
   TaskPatchBody,
   TaskStatus,
 } from "../../../lib/my-task-sync";
-import { isOverdue } from "../lib/date";
+import { isOverdue, todayDateInputValue } from "../lib/date";
 import { fmtFull, fmtRelative } from "../lib/format";
 import { MetaRow } from "./MetaRow";
 import { QuickBtn } from "./QuickBtn";
@@ -40,7 +40,7 @@ export function DetailModal({
     setBusy(kind);
     const patch: TaskPatchBody =
       kind === "done"
-        ? { status: "done", doneAt: new Date().toISOString() }
+        ? { status: "done", doneAt: todayDateInputValue() }
         : kind === "closed"
           ? { status: "closed" }
           : { status: "open", doneAt: null };

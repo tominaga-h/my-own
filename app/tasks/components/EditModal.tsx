@@ -9,7 +9,7 @@ import type {
 } from "../../../lib/my-task-sync";
 import { formatApiError } from "../lib/api-error";
 import { CHEVRON_DATA_URL } from "../lib/chevron";
-import { toDateInputValue } from "../lib/date";
+import { toDateInputValue, todayDateInputValue } from "../lib/date";
 
 type SaveState = "idle" | "saving" | "saved" | "error";
 
@@ -81,15 +81,13 @@ export function EditModal({
       patch.important = draft.important;
     }
     if (toDateInputValue(sel.due) !== draft.due) {
-      patch.due = draft.due
-        ? new Date(draft.due + "T00:00:00").toISOString()
-        : null;
+      patch.due = draft.due ? draft.due : null;
     }
     if ((sel.projectName ?? "") !== draft.projectName) {
       patch.projectName = draft.projectName === "" ? null : draft.projectName;
     }
     if (patch.status === "done" && sel.status !== "done") {
-      patch.doneAt = new Date().toISOString();
+      patch.doneAt = todayDateInputValue();
     } else if (patch.status === "open" && sel.status === "done") {
       patch.doneAt = null;
     }

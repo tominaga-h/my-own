@@ -22,7 +22,7 @@ import { ModalShell } from "./components/ModalShell";
 import { Stat } from "./components/Stat";
 import { TaskRow } from "./components/TaskRow";
 import { formatApiError } from "./lib/api-error";
-import { isOverdue } from "./lib/date";
+import { isOverdue, todayDateInputValue } from "./lib/date";
 import { groupTasks, type StatusFilter } from "./lib/group-tasks";
 
 export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
@@ -307,7 +307,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
                         ? { status: "open", doneAt: null }
                         : {
                             status: "done",
-                            doneAt: new Date().toISOString(),
+                            doneAt: todayDateInputValue(),
                           };
                     await safePatch(r.taskNumber, next);
                   }}

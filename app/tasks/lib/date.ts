@@ -13,3 +13,7 @@ export function toDateInputValue(iso: string | null): string {
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
 }
+
+export function todayDateInputValue(): string {
+  return toDateInputValue(new Date().toISOString());
+}
