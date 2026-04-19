@@ -1,3 +1,22 @@
+export class ApiError extends Error {
+  status: number;
+  constructor(status: number, message?: string) {
+    super(message ?? `HTTP ${status}`);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+async function readErrorMessage(response: Response): Promise<string | undefined> {
+  try {
+    const body = await response.clone().json();
+    if (body && typeof body.error === "string") return body.error;
+  } catch {
+    /* non-JSON body — fall through */
+  }
+  return undefined;
+}
+
 export function createApiFetcher(apiKey: string) {
   return async function fetcher<T = unknown>(url: string): Promise<T> {
     const response = await fetch(url, {
@@ -7,7 +26,8 @@ export function createApiFetcher(apiKey: string) {
     });
 
     if (!response.ok) {
-      throw new Error(String(response.status));
+      const message = await readErrorMessage(response);
+      throw new ApiError(response.status, message);
     }
 
     return response.json() as Promise<T>;
@@ -32,7 +52,8 @@ export async function apiFetchJson<T = unknown>(
   });
 
   if (!response.ok) {
-    throw new Error(String(response.status));
+    const message = await readErrorMessage(response);
+    throw new ApiError(response.status, message);
   }
 
   return response.json() as Promise<T>;

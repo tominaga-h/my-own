@@ -1,7 +1,5 @@
 import {
-  boolean,
   check,
-  date,
   index,
   integer,
   jsonb,
@@ -79,45 +77,6 @@ export const links = pgTable(
   }),
 );
 
-export const tasks = pgTable(
-  "tasks",
-  {
-    id: serial("id").primaryKey(),
-    userId: uuid("user_id").notNull(),
-    title: text("title").notNull(),
-    status: text("status").notNull().default("open"),
-    projectId: integer("project_id").references(() => projects.id, {
-      onDelete: "set null",
-    }),
-    source: text("source").notNull().default("cli"),
-    important: boolean("important").notNull().default(false),
-    due: date("due"),
-    doneAt: date("done_at"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => ({
-    userIdIdx: index("tasks_user_id_idx").on(table.userId),
-    projectIdIdx: index("tasks_project_id_idx").on(table.projectId),
-    statusCheck: check("tasks_status_check", sql`${table.status} in ('open', 'done', 'closed')`),
-  }),
-);
-
-export const taskReminds = pgTable(
-  "task_reminds",
-  {
-    id: serial("id").primaryKey(),
-    taskId: integer("task_id")
-      .notNull()
-      .references(() => tasks.id, { onDelete: "cascade" }),
-    remindAt: date("remind_at").notNull(),
-  },
-  (table) => ({
-    taskIdIdx: index("idx_task_reminds_task_id").on(table.taskId),
-    remindAtIdx: index("idx_task_reminds_remind_at").on(table.remindAt),
-  }),
-);
-
 export const syncStates = pgTable(
   "sync_states",
   {
@@ -149,34 +108,35 @@ export const noteLinks = pgTable(
   }),
 );
 
+// task_number は my-task-sync 側で採番される rowid。Neon に tasks テーブルが
+// 存在しないため FK は張れず、参照先タスクが消えてもこちら側は cascade されない。
+// 整合性は my-task-sync→my-own の同期処理で別途担保する想定。
 export const taskNotes = pgTable(
   "task_notes",
   {
-    taskId: integer("task_id")
-      .notNull()
-      .references(() => tasks.id, { onDelete: "cascade" }),
+    taskNumber: integer("task_number").notNull(),
     noteId: integer("note_id")
       .notNull()
       .references(() => notes.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.taskId, table.noteId], name: "task_notes_pkey" }),
+    pk: primaryKey({ columns: [table.taskNumber, table.noteId], name: "task_notes_pkey" }),
+    taskNumberIdx: index("task_notes_task_number_idx").on(table.taskNumber),
   }),
 );
 
 export const taskLinks = pgTable(
   "task_links",
   {
-    taskId: integer("task_id")
-      .notNull()
-      .references(() => tasks.id, { onDelete: "cascade" }),
+    taskNumber: integer("task_number").notNull(),
     linkId: integer("link_id")
       .notNull()
       .references(() => links.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.taskId, table.linkId], name: "task_links_pkey" }),
+    pk: primaryKey({ columns: [table.taskNumber, table.linkId], name: "task_links_pkey" }),
+    taskNumberIdx: index("task_links_task_number_idx").on(table.taskNumber),
   }),
 );
