@@ -1,5 +1,8 @@
 export type TaskStatus = "open" | "done" | "closed";
 
+/** Web UI から作成したタスクの source 識別子。Slack 同期は "slack"。 */
+export const CLIENT_SOURCE = "web";
+
 export type TaskDto = {
   taskNumber: number;
   title: string;

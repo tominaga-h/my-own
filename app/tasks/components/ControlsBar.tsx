@@ -36,6 +36,7 @@ export function ControlsBar({
   projectFilter,
   onProjectFilterChange,
   projects,
+  onNewTask,
 }: {
   tabs: Array<{ key: StatusFilter; label: string; count: number }>;
   filter: StatusFilter;
@@ -45,6 +46,7 @@ export function ControlsBar({
   projectFilter: ProjectFilter;
   onProjectFilterChange: (v: ProjectFilter) => void;
   projects: ProjectDto[];
+  onNewTask: () => void;
 }) {
   const inProjectScope = projectFilter.kind !== "all";
   return (
@@ -232,6 +234,45 @@ export function ControlsBar({
             ))}
           </select>
         </div>
+
+        <div
+          style={{ height: 24, width: 1, background: "rgba(230,232,234,.8)" }}
+        />
+
+        {/* New Task */}
+        <button
+          type="button"
+          onClick={onNewTask}
+          style={{
+            border: "none",
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "7px 14px",
+            borderRadius: 9999,
+            fontSize: 13,
+            fontWeight: 500,
+            fontFamily: "inherit",
+            background: "linear-gradient(90deg,#3525cd,#4f46e5)",
+            color: "#fff",
+            boxShadow: "0 2px 10px rgba(53,37,205,.22)",
+          }}
+        >
+          <svg
+            width={13}
+            height={13}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.4}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+          New Task
+        </button>
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import useSWR, { useSWRConfig } from "swr";
 import { apiFetchJson } from "../../lib/api-client";
 import type {
   ProjectListResponse,
+  TaskCreateBody,
   TaskDto,
   TaskPatchBody,
   TaskResponse,
@@ -19,6 +20,7 @@ import {
 import { DetailModal } from "./components/DetailModal";
 import { EditModal } from "./components/EditModal";
 import { ModalShell } from "./components/ModalShell";
+import { NewTaskModal } from "./components/NewTaskModal";
 import { Stat } from "./components/Stat";
 import { TaskRow } from "./components/TaskRow";
 import { formatApiError } from "./lib/api-error";
@@ -33,6 +35,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
   const [openTaskNumber, setOpenTaskNumber] = useState<number | null>(null);
   const [mode, setMode] = useState<"detail" | "edit">("detail");
   const [actionError, setActionError] = useState<string | null>(null);
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
 
   const apiKey = useApiKey();
   const { data: projectsData } = useSWR<ProjectListResponse>("/api/projects");
@@ -89,12 +92,30 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openTaskNumber]);
 
+  useEffect(() => {
+    // 編集/詳細モーダルが開いている間はそちらの Esc ハンドラに任せ、二重発火を避ける。
+    if (!showNewTaskModal || openTaskNumber !== null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowNewTaskModal(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showNewTaskModal, openTaskNumber]);
+
   const { mutate } = useSWRConfig();
 
   async function patchTask(taskNumber: number, patch: TaskPatchBody) {
     await apiFetchJson<TaskResponse>(apiKey, `/api/tasks/${taskNumber}`, {
       method: "PATCH",
       body: JSON.stringify({ ...patch, updatedAt: new Date().toISOString() }),
+    });
+    await mutate("/api/tasks");
+  }
+
+  async function createTask(body: TaskCreateBody) {
+    await apiFetchJson<TaskResponse>(apiKey, "/api/tasks", {
+      method: "POST",
+      body: JSON.stringify(body),
     });
     await mutate("/api/tasks");
   }
@@ -222,6 +243,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
         projectFilter={projectFilter}
         onProjectFilterChange={setProjectFilter}
         projects={projects}
+        onNewTask={() => setShowNewTaskModal(true)}
       />
 
       {/* List */}
@@ -343,6 +365,17 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
               onSaved={closeModal}
             />
           )}
+        </ModalShell>
+      )}
+
+      {showNewTaskModal && (
+        <ModalShell onClose={() => setShowNewTaskModal(false)}>
+          <NewTaskModal
+            projects={projects.map((p) => p.name)}
+            onCancel={() => setShowNewTaskModal(false)}
+            onCreate={createTask}
+            onCreated={() => setShowNewTaskModal(false)}
+          />
         </ModalShell>
       )}
     </div>
