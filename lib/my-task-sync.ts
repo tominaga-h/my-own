@@ -92,6 +92,7 @@ export function resetMtsConfigForTests(): void {
 
 async function mtsFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { baseUrl, apiKey } = mtsConfig();
+  console.log("mtsFetch", baseUrl, apiKey);
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
   if (init.body && !headers.has("Content-Type")) {
