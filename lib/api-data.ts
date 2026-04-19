@@ -99,6 +99,21 @@ export async function createNote(userId: string, body: string) {
   return row;
 }
 
+export async function updateNote(userId: string, id: number, body: string) {
+  const trimmed = body.trim();
+  if (!trimmed) {
+    throw new Error("本文が空です");
+  }
+
+  const [row] = await db
+    .update(notes)
+    .set({ body: trimmed, updatedAt: new Date() })
+    .where(and(eq(notes.id, id), eq(notes.userId, userId)))
+    .returning();
+
+  return row ?? null;
+}
+
 export async function listTasks(_userId: string) {
   const res = await mtsListTasks({ limit: 500 });
   return { tasks: res.tasks, serverTime: res.serverTime };
