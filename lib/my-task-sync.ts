@@ -77,11 +77,18 @@ let cachedConfig: { baseUrl: string; apiKey: string } | null = null;
 
 function mtsConfig() {
   if (cachedConfig) return cachedConfig;
-  const baseUrl = process.env.MY_TASK_SYNC_BASE_URL;
+  const rawBase = process.env.MY_TASK_SYNC_BASE_URL;
   const apiKey = process.env.MY_TASK_SYNC_API_KEY;
-  if (!baseUrl) throw new Error("MY_TASK_SYNC_BASE_URL is required");
+  if (!rawBase) throw new Error("MY_TASK_SYNC_BASE_URL is required");
   if (!apiKey) throw new Error("MY_TASK_SYNC_API_KEY is required");
-  cachedConfig = { baseUrl: baseUrl.replace(/\/$/, ""), apiKey };
+  // ngrok は http→https に 307 リダイレクトするが、Node の fetch は
+  // クロススキーム redirect で Authorization を落とすため upstream が 401 を返す。
+  // ngrok ホスト向けは無条件に https に引き上げて redirect 自体を回避する。
+  let baseUrl = rawBase.replace(/\/$/, "");
+  if (/^http:\/\/[^/]*\.ngrok/.test(baseUrl)) {
+    baseUrl = baseUrl.replace(/^http:\/\//, "https://");
+  }
+  cachedConfig = { baseUrl, apiKey };
   return cachedConfig;
 }
 
@@ -92,7 +99,6 @@ export function resetMtsConfigForTests(): void {
 
 async function mtsFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const { baseUrl, apiKey } = mtsConfig();
-  console.log("mtsFetch", baseUrl, apiKey);
   const headers = new Headers(init.headers);
   headers.set("Authorization", `Bearer ${apiKey}`);
   if (init.body && !headers.has("Content-Type")) {
