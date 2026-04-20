@@ -1,417 +1,420 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import useSWR, { useSWRConfig } from "swr";
 
-type StatusFilter = "all" | "open" | "done" | "closed";
+import { apiFetchJson } from "../../lib/api-client";
+import type {
+  ProjectListResponse,
+  TaskCreateBody,
+  TaskDto,
+  TaskPatchBody,
+  TaskResponse,
+} from "../../lib/my-task-sync";
+import { useApiKey } from "../providers";
+import {
+  ControlsBar,
+  PROJECT_FILTER_ALL,
+  type ProjectFilter,
+} from "./components/ControlsBar";
+import { DetailModal } from "./components/DetailModal";
+import { EditModal } from "./components/EditModal";
+import { ModalShell } from "./components/ModalShell";
+import { NewTaskModal } from "./components/NewTaskModal";
+import { TaskRow } from "./components/TaskRow";
+import { formatApiError } from "./lib/api-error";
+import { isOverdue, todayDateInputValue } from "./lib/date";
+import { groupTasks, type StatusFilter } from "./lib/group-tasks";
 
-type TaskRow = {
-  id: number;
-  userId: string;
-  title: string;
-  status: string;
-  source: string;
-  important: boolean;
-  projectId: number | null;
-  due: string | null;
-  doneAt: string | null;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-};
-
-type Props = {
-  rows: TaskRow[];
-  remindsMap: Record<number, string[]>;
-  projectMap: Record<number, string>;
-};
-
-function fmtShort(d: string | Date | null) {
-  if (!d) return "—";
-  const date = new Date(d);
-  return `${date.getMonth() + 1}/${date.getDate()}`;
-}
-
-function fmtFull(d: string | Date | null) {
-  if (!d) return "—";
-  return new Date(d).toLocaleDateString("ja-JP");
-}
-
-function isOverdue(due: string | null, status: string) {
-  if (!due || status !== "open") return false;
-  return new Date(due) < new Date(new Date().toDateString());
-}
-
-const dotColor: Record<string, string> = {
-  open: "bg-emerald-400",
-  done: "bg-blue-400",
-  closed: "bg-[#e6e8ea]",
-};
-
-export default function TasksView({ rows, remindsMap, projectMap }: Props) {
+export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
   const [filter, setFilter] = useState<StatusFilter>("open");
+  const [importantOnly, setImportantOnly] = useState(false);
   const [search, setSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState<number | "all">("all");
-  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [projectFilter, setProjectFilter] =
+    useState<ProjectFilter>(PROJECT_FILTER_ALL);
+  const [openTaskNumber, setOpenTaskNumber] = useState<number | null>(null);
+  const [mode, setMode] = useState<"detail" | "edit">("detail");
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false);
 
-  useEffect(() => {
-    if (rows.length === 0) {
-      setSelectedId(null);
-      return;
+  const apiKey = useApiKey();
+  const { data: projectsData } = useSWR<ProjectListResponse>("/api/projects");
+  const projects = projectsData?.projects ?? [];
+
+  const counts = useMemo(() => {
+    let open = 0,
+      done = 0,
+      closed = 0,
+      overdue = 0,
+      important = 0;
+    for (const t of tasks) {
+      if (t.status === "open") open++;
+      else if (t.status === "done") done++;
+      else if (t.status === "closed") closed++;
+      if (t.important) important++;
+      if (isOverdue(t.due, t.status)) overdue++;
     }
+    return { all: tasks.length, open, done, closed, overdue, important };
+  }, [tasks]);
 
-    if (!selectedId || !rows.some((row) => row.id === selectedId)) {
-      setSelectedId(rows.find((row) => row.status === "open")?.id ?? rows[0].id);
-    }
-  }, [rows, selectedId]);
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return tasks
+      .filter((t) => {
+        if (filter !== "all" && t.status !== filter) return false;
+        if (importantOnly && !t.important) return false;
+        if (projectFilter.kind === "none" && t.projectName) return false;
+        if (
+          projectFilter.kind === "named" &&
+          t.projectName !== projectFilter.name
+        )
+          return false;
+        if (q && !t.title.toLowerCase().includes(q)) return false;
+        return true;
+      })
+      .sort((a, b) => b.taskNumber - a.taskNumber);
+  }, [tasks, filter, importantOnly, search, projectFilter]);
 
-  const projectOptions = Object.entries(projectMap).map(([id, name]) => ({
-    id: Number(id),
-    name,
-  }));
+  const importantInScope = useMemo(() => {
+    return tasks.filter((t) => {
+      if (filter !== "all" && t.status !== filter) return false;
+      return t.important;
+    }).length;
+  }, [tasks, filter]);
 
-  const counts = {
-    all: rows.length,
-    open: rows.filter((r) => r.status === "open").length,
-    done: rows.filter((r) => r.status === "done").length,
-    closed: rows.filter((r) => r.status === "closed").length,
+  const groups = useMemo(() => groupTasks(filtered, filter), [filtered, filter]);
+  const openTask = tasks.find((t) => t.taskNumber === openTaskNumber) ?? null;
+
+  const closeModal = () => {
+    setOpenTaskNumber(null);
+    setMode("detail");
   };
 
-  const overdueCount = rows.filter((r) => isOverdue(r.due, r.status)).length;
-  const importantCount = rows.filter((r) => r.important).length;
+  useEffect(() => {
+    if (openTaskNumber === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeModal();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openTaskNumber]);
 
-  const filtered = rows.filter((row) => {
-    if (filter !== "all" && row.status !== filter) return false;
-    if (search && !row.title.toLowerCase().includes(search.toLowerCase()))
-      return false;
-    if (projectFilter !== "all" && row.projectId !== projectFilter) return false;
-    return true;
-  });
-  const selected =
-    filtered.find((r) => r.id === selectedId) ?? filtered[0] ?? null;
-  const reminds = selected ? (remindsMap[selected.id] ?? []) : [];
+  useEffect(() => {
+    // 編集/詳細モーダルが開いている間はそちらの Esc ハンドラに任せ、二重発火を避ける。
+    if (!showNewTaskModal || openTaskNumber !== null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowNewTaskModal(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showNewTaskModal, openTaskNumber]);
+
+  const { mutate } = useSWRConfig();
+
+  async function patchTask(taskNumber: number, patch: TaskPatchBody) {
+    await apiFetchJson<TaskResponse>(apiKey, `/api/tasks/${taskNumber}`, {
+      method: "PATCH",
+      body: JSON.stringify({ ...patch, updatedAt: new Date().toISOString() }),
+    });
+    await mutate("/api/tasks");
+  }
+
+  async function createTask(body: TaskCreateBody) {
+    await apiFetchJson<TaskResponse>(apiKey, "/api/tasks", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    await mutate("/api/tasks");
+  }
+
+  // I2: toggle / quick action の失敗をユーザーに通知（EditModal は専用 UI があるので別経路）
+  async function safePatch(taskNumber: number, patch: TaskPatchBody) {
+    try {
+      await patchTask(taskNumber, patch);
+      setActionError(null);
+    } catch (e) {
+      setActionError(formatApiError(e));
+    }
+  }
 
   const tabs: Array<{ key: StatusFilter; label: string; count: number }> = [
-    { key: "all", label: "All", count: counts.all },
     { key: "open", label: "Open", count: counts.open },
     { key: "done", label: "Done", count: counts.done },
     { key: "closed", label: "Closed", count: counts.closed },
+    { key: "all", label: "All", count: counts.all },
   ];
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* ── Page Header ── */}
-      <div className="flex flex-wrap items-baseline justify-between gap-3 px-1 py-2">
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      {actionError && (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            borderRadius: 12,
+            background: "rgba(254,242,242,.9)",
+            boxShadow: "inset 0 0 0 1px rgba(254,202,202,.8)",
+            color: "#991b1b",
+            fontSize: 13,
+          }}
+        >
+          <svg
+            width={14}
+            height={14}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ flexShrink: 0 }}
+          >
+            <circle cx={12} cy={12} r={10} />
+            <line x1={12} y1={8} x2={12} y2={12} />
+            <line x1={12} y1={16} x2={12.01} y2={16} />
+          </svg>
+          <span style={{ flex: 1 }}>{actionError}</span>
+          <button
+            type="button"
+            aria-label="閉じる"
+            onClick={() => setActionError(null)}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              background: "transparent",
+              color: "#991b1b",
+              fontSize: 16,
+              lineHeight: 1,
+              padding: "2px 6px",
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {/* Page header */}
+      <header
+        style={{
+          display: "flex",
+          alignItems: "flex-end",
+          justifyContent: "space-between",
+          padding: "4px 4px 0",
+        }}
+      >
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+          <p
+            style={{
+              margin: 0,
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "rgba(70,69,85,.45)",
+            }}
+          >
+            Workspace
+          </p>
+          <h1
+            style={{
+              margin: "4px 0 0",
+              fontSize: 34,
+              fontWeight: 600,
+              letterSpacing: "-0.02em",
+              color: "#191c1e",
+            }}
+          >
             Tasks
           </h1>
-          <p className="mt-1 text-sm text-slate-400">{counts.all} tasks total</p>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-[11px] tracking-[0.06em] text-[#464555]/60">
-          <span>{counts.open} open</span>
-          {importantCount > 0 && (
-            <span className="text-amber-500">{importantCount} important</span>
-          )}
-          {overdueCount > 0 && (
-            <span className="text-red-400">{overdueCount} overdue</span>
-          )}
-        </div>
-      </div>
-
-      {/* ── Filter Box ── */}
-      <div className="rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-wrap items-center gap-0.5">
-            {tabs.map((t) => {
-              const on = t.key === filter;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  onClick={() => setFilter(t.key)}
-                  className={[
-                    "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-all",
-                    on
-                      ? "bg-gradient-to-r from-[#3525cd] to-[#4f46e5] text-white shadow-[0_2px_8px_rgba(53,37,205,0.18)]"
-                      : "text-[#464555] hover:bg-[#e6e8ea]/60",
-                  ].join(" ")}
-                >
-                  {t.label}
-                  <span
-                    className={[
-                      "ml-1.5 text-[11px] tabular-nums",
-                      on ? "text-white/60" : "text-[#464555]/50",
-                    ].join(" ")}
-                  >
-                    {t.count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="h-6 w-px bg-[#e6e8ea]/80" />
-
-          <div className="flex min-w-[240px] flex-1 items-center gap-3 rounded-xl border border-[#e6e8ea]/60 bg-white/80 px-3 py-2">
-            <svg
-              className="h-4 w-4 shrink-0 text-[#464555]/35"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
-              />
-            </svg>
-            <input
-              type="text"
-              placeholder="タイトルで検索…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-[13px] text-[#191c1e] placeholder-[#464555]/30 outline-none"
-            />
-          </div>
-
-          <select
-            value={projectFilter === "all" ? "all" : String(projectFilter)}
-            onChange={(e) =>
-              setProjectFilter(
-                e.target.value === "all" ? "all" : Number(e.target.value),
-              )
-            }
-            className="rounded-xl border border-[#e6e8ea]/60 bg-white/80 px-3 py-2 text-[13px] text-[#464555] outline-none"
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setShowNewTaskModal(true)}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 9999,
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: "inherit",
+              background: "linear-gradient(90deg,#3525cd,#4f46e5)",
+              color: "#fff",
+              boxShadow: "0 2px 10px rgba(53,37,205,.22)",
+            }}
           >
-            <option value="all">All Projects</option>
-            {projectOptions.map((p) => (
-              <option key={p.id} value={String(p.id)}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+            <svg
+              width={13}
+              height={13}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New Task
+          </button>
         </div>
-      </div>
+      </header>
 
-      {/* ── Body: List + Detail ── */}
-      <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
-        {/* Dense list */}
-        <div className="overflow-hidden rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
-          {/* Column headers */}
-          <div className="flex items-center gap-3 bg-[#f2f4f6]/60 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.14em] text-[#464555]/50">
-            <span className="w-5" />
-            <span className="w-10">#</span>
-            <span className="flex-1">Title</span>
-            <span className="w-16 text-right">Due</span>
-            <span className="w-20 text-right">Project</span>
+      {/* Controls */}
+      <ControlsBar
+        tabs={tabs}
+        filter={filter}
+        onFilterChange={setFilter}
+        importantOnly={importantOnly}
+        onImportantOnlyChange={setImportantOnly}
+        importantCount={importantInScope}
+        search={search}
+        onSearchChange={setSearch}
+        projectFilter={projectFilter}
+        onProjectFilterChange={setProjectFilter}
+        projects={projects}
+      />
+
+      {/* List */}
+      <section
+        style={{
+          borderRadius: 12,
+          background: "rgba(255,255,255,.72)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          overflow: "hidden",
+          boxShadow: "0 1px 3px rgba(25,28,30,.04)",
+          minHeight: 400,
+        }}
+      >
+        {filtered.length === 0 ? (
+          <div style={{ padding: "80px 24px", textAlign: "center" }}>
+            <p
+              style={{
+                margin: 0,
+                fontSize: 14,
+                color: "rgba(70,69,85,.4)",
+              }}
+            >
+              該当するタスクがありません
+            </p>
+            <p
+              style={{
+                margin: "6px 0 0",
+                fontSize: 12,
+                color: "rgba(70,69,85,.3)",
+              }}
+            >
+              フィルタを変更するか検索語を調整してください
+            </p>
           </div>
-
-          <div className="max-h-[calc(100vh-180px)] overflow-auto">
-            {filtered.map((row) => {
-              const on = row.id === selected?.id;
-              const overdue = isOverdue(row.due, row.status);
-              const project = row.projectId
-                ? projectMap[row.projectId]
-                : null;
-              const hasReminds = (remindsMap[row.id]?.length ?? 0) > 0;
-
-              return (
-                <button
-                  key={row.id}
-                  type="button"
-                  onClick={() => setSelectedId(row.id)}
-                  className={[
-                    "flex w-full items-center gap-3 px-5 py-[7px] text-left transition-colors",
-                    on
-                      ? "bg-[#dbe2fa]/35 shadow-[inset_3px_0_0_#4f46e5]"
-                      : "hover:bg-[#f2f4f6]/80",
-                  ].join(" ")}
+        ) : (
+          groups.map((g) => (
+              <div key={g.key}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 24px 6px",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: g.tone,
+                  }}
                 >
-                  {/* Status dot */}
-                  <span className="flex w-5 justify-center">
-                    <span
-                      className={[
-                        "inline-block h-[7px] w-[7px] rounded-full",
-                        dotColor[row.status] ?? "bg-[#e6e8ea]",
-                      ].join(" ")}
-                    />
-                  </span>
-
-                  {/* ID */}
-                  <span className="w-10 text-[12px] tabular-nums text-[#464555]/40">
-                    {row.id}
-                  </span>
-
-                  {/* Title + inline badges */}
-                  <span className="flex min-w-0 flex-1 items-center gap-1.5">
-                    {row.important && (
-                      <span className="shrink-0 text-[11px] font-bold text-amber-500">
-                        !
-                      </span>
-                    )}
-                    <span
-                      className={[
-                        "truncate text-[13px] leading-tight",
-                        row.status === "done"
-                          ? "text-[#464555]/35 line-through decoration-[#464555]/15"
-                          : "text-[#191c1e]",
-                      ].join(" ")}
-                    >
-                      {row.title}
-                    </span>
-                    {hasReminds && (
-                      <span className="shrink-0 rounded-[4px] bg-amber-50 px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-amber-500">
-                        R
-                      </span>
-                    )}
-                    {overdue && (
-                      <span className="shrink-0 rounded-[4px] bg-red-50 px-1 py-px text-[9px] font-semibold uppercase tracking-wider text-red-400">
-                        OD
-                      </span>
-                    )}
-                  </span>
-
-                  {/* Due */}
-                  <span
-                    className={[
-                      "w-16 text-right text-[12px] tabular-nums",
-                      overdue
-                        ? "font-medium text-red-500"
-                        : "text-[#464555]/35",
-                    ].join(" ")}
-                  >
-                    {row.due ? fmtShort(row.due) : "—"}
-                  </span>
-
-                  {/* Project */}
-                  <span className="w-20 truncate text-right text-[11px] text-[#464555]/35">
-                    {project ?? "—"}
-                  </span>
-                </button>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <div className="py-12 text-center text-[13px] text-[#464555]/40">
-                該当するタスクがありません
+                <span>{g.label}</span>
+                <span
+                  style={{
+                    flex: 1,
+                    height: 1,
+                    background:
+                      "linear-gradient(90deg, rgba(226,232,240,.7), transparent)",
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 500,
+                    color: "rgba(70,69,85,.35)",
+                    letterSpacing: 0,
+                  }}
+                >
+                  {g.rows.length}
+                </span>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Detail panel ── */}
-        <aside className="overflow-hidden rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)] backdrop-blur-[20px]">
-          {selected ? (
-            <div className="flex h-full flex-col">
-              {/* Header */}
-              <div className="bg-[#f2f4f6]/50 px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={[
-                      "inline-block h-2 w-2 rounded-full",
-                      dotColor[selected.status] ?? "bg-[#e6e8ea]",
-                    ].join(" ")}
-                  />
-                  <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[#464555]/45">
-                    #{selected.id} · {selected.status}
-                  </span>
-                  <span className="ml-auto rounded-[5px] bg-[#e6e8ea]/50 px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#464555]/45">
-                    {selected.source}
-                  </span>
-                </div>
-                <h2 className="mt-1.5 text-[14px] font-semibold leading-snug text-[#191c1e]">
-                  {selected.important && (
-                    <span className="mr-1 text-amber-500">!</span>
-                  )}
-                  {selected.title}
-                </h2>
-              </div>
-
-              {/* Fields */}
-              <div className="flex-1 space-y-1 px-3 py-3">
-                <div className="grid grid-cols-2 gap-1">
-                  <div className="rounded-xl bg-[#f2f4f6]/60 px-3 py-2">
-                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#464555]/40">
-                      Due
-                    </p>
-                    <p
-                      className={[
-                        "mt-0.5 text-[13px] font-medium tabular-nums",
-                        isOverdue(selected.due, selected.status)
-                          ? "text-red-500"
-                          : "text-[#191c1e]",
-                      ].join(" ")}
-                    >
-                      {selected.due ? fmtFull(selected.due) : "—"}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-[#f2f4f6]/60 px-3 py-2">
-                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#464555]/40">
-                      Created
-                    </p>
-                    <p className="mt-0.5 text-[13px] font-medium tabular-nums text-[#191c1e]">
-                      {fmtFull(selected.createdAt)}
-                    </p>
-                  </div>
-                </div>
-
-                {selected.doneAt && (
-                  <div className="rounded-xl bg-blue-50/40 px-3 py-2">
-                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-blue-400/60">
-                      Completed
-                    </p>
-                    <p className="mt-0.5 text-[13px] font-medium tabular-nums text-[#191c1e]">
-                      {fmtFull(selected.doneAt)}
-                    </p>
-                  </div>
-                )}
-
-                {selected.projectId && projectMap[selected.projectId] && (
-                  <div className="rounded-xl bg-[#f2f4f6]/60 px-3 py-2">
-                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-[#464555]/40">
-                      Project
-                    </p>
-                    <p className="mt-0.5 text-[13px] font-medium text-[#191c1e]">
-                      {projectMap[selected.projectId]}
-                    </p>
-                  </div>
-                )}
-
-                {reminds.length > 0 && (
-                  <div className="rounded-xl bg-amber-50/40 px-3 py-2">
-                    <p className="text-[9px] font-medium uppercase tracking-[0.14em] text-amber-500/60">
-                      Reminds
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap gap-2">
-                      {reminds.map((d) => (
-                        <span
-                          key={d}
-                          className="text-[13px] font-medium tabular-nums text-[#191c1e]"
-                        >
-                          {fmtFull(d)}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap gap-1 pt-1">
-                  <span className="rounded-[5px] bg-[#f2f4f6]/80 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#464555]/40">
-                    {selected.important ? "important" : "normal"}
-                  </span>
-                  <span className="rounded-[5px] bg-[#f2f4f6]/80 px-2 py-0.5 text-[9px] font-medium uppercase tracking-[0.1em] text-[#464555]/40">
-                    upd {fmtFull(selected.updatedAt)}
-                  </span>
-                </div>
-              </div>
+              {g.rows.map((r) => (
+                <TaskRow
+                  key={r.taskNumber}
+                  row={r}
+                  onSelect={() => {
+                    setOpenTaskNumber(r.taskNumber);
+                    setMode("detail");
+                  }}
+                  onToggleDone={async () => {
+                    const next: TaskPatchBody =
+                      r.status === "done"
+                        ? { status: "open", doneAt: null }
+                        : {
+                            status: "done",
+                            doneAt: todayDateInputValue(),
+                          };
+                    await safePatch(r.taskNumber, next);
+                  }}
+                  onToggleImportant={async () => {
+                    await safePatch(r.taskNumber, { important: !r.important });
+                  }}
+                />
+              ))}
             </div>
+          ))
+        )}
+      </section>
+
+      {openTask && (
+        <ModalShell onClose={closeModal}>
+          {mode === "detail" ? (
+            <DetailModal
+              sel={openTask}
+              onEdit={() => setMode("edit")}
+              onClose={closeModal}
+              onQuickAction={async (patch) => {
+                await safePatch(openTask.taskNumber, patch);
+              }}
+            />
           ) : (
-            <div className="flex h-full min-h-[300px] items-center justify-center text-[13px] text-[#464555]/40">
-              タスクを選択してください
-            </div>
+            <EditModal
+              sel={openTask}
+              projects={projects.map((p) => p.name)}
+              onCancel={() => setMode("detail")}
+              onSave={async (patch) => {
+                await patchTask(openTask.taskNumber, patch);
+              }}
+              onSaved={closeModal}
+            />
           )}
-        </aside>
-      </div>
+        </ModalShell>
+      )}
+
+      {showNewTaskModal && (
+        <ModalShell onClose={() => setShowNewTaskModal(false)}>
+          <NewTaskModal
+            projects={projects.map((p) => p.name)}
+            onCancel={() => setShowNewTaskModal(false)}
+            onCreate={createTask}
+            onCreated={() => setShowNewTaskModal(false)}
+          />
+        </ModalShell>
+      )}
     </div>
   );
 }
+

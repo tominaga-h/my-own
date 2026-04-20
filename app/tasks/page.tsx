@@ -4,27 +4,23 @@ import useSWR from "swr";
 
 import TasksSkeleton from "./TasksSkeleton";
 import TasksView from "./TasksView";
+import { ApiError } from "../../lib/api-client";
+import type { TaskListResponse } from "../../lib/my-task-sync";
 
-type TasksResponse = {
-  rows: Array<{
-    id: number;
-    userId: string;
-    title: string;
-    status: string;
-    source: string;
-    important: boolean;
-    projectId: number | null;
-    due: string | null;
-    doneAt: string | null;
-    createdAt: string;
-    updatedAt: string;
-  }>;
-  remindsMap: Record<number, string[]>;
-  projectMap: Record<number, string>;
-};
+function errorMessage(error: unknown): string {
+  if (error instanceof ApiError) {
+    if (error.status === 401 || error.status === 403) {
+      return "認証エラー: API キーを確認してください。";
+    }
+    if (error.status === 502) {
+      return "my-task-sync に到達できません。ローカルサーバーが起動しているか確認してください。";
+    }
+  }
+  return "タスクの取得に失敗しました。";
+}
 
 export default function TasksPage() {
-  const { data, isLoading } = useSWR<TasksResponse>("/api/tasks");
+  const { data, isLoading, error } = useSWR<TaskListResponse>("/api/tasks");
 
   if (isLoading && !data) {
     return <TasksSkeleton />;

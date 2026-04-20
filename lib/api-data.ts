@@ -1,14 +1,8 @@
 import { and, count, desc, eq, sql } from "drizzle-orm";
 
 import { db } from "./db";
-import {
-  links,
-  notes,
-  projects,
-  syncStates,
-  taskReminds,
-  tasks,
-} from "../db/schema";
+import { mtsListTasks } from "./my-task-sync";
+import { links, notes, projects, syncStates } from "../db/schema";
 
 export async function getCollectionStats(userId: string) {
   const [notesResult, linksResult, syncRow] = await Promise.all([
@@ -120,36 +114,9 @@ export async function updateNote(userId: string, id: number, body: string) {
   return row ?? null;
 }
 
-export async function listTasks(userId: string) {
-  const [rows, reminds, projectRows] = await Promise.all([
-    db
-      .select()
-      .from(tasks)
-      .where(eq(tasks.userId, userId))
-      .orderBy(desc(tasks.id))
-      .limit(500),
-    db.select().from(taskReminds),
-    db
-      .select({ id: projects.id, name: projects.name })
-      .from(projects)
-      .where(eq(projects.userId, userId)),
-  ]);
-
-  const remindsMap: Record<number, string[]> = {};
-  for (const remind of reminds) {
-    (remindsMap[remind.taskId] ??= []).push(remind.remindAt);
-  }
-
-  const projectMap: Record<number, string> = {};
-  for (const project of projectRows) {
-    projectMap[project.id] = project.name;
-  }
-
-  return {
-    rows,
-    remindsMap,
-    projectMap,
-  };
+export async function listTasks(_userId: string) {
+  const res = await mtsListTasks({ limit: 500 });
+  return { tasks: res.tasks, serverTime: res.serverTime };
 }
 
 export async function listLinks(userId: string, limit = 100) {
