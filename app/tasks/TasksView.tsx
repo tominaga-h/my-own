@@ -21,7 +21,6 @@ import { DetailModal } from "./components/DetailModal";
 import { EditModal } from "./components/EditModal";
 import { ModalShell } from "./components/ModalShell";
 import { NewTaskModal } from "./components/NewTaskModal";
-import { Stat } from "./components/Stat";
 import { TaskRow } from "./components/TaskRow";
 import { formatApiError } from "./lib/api-error";
 import { isOverdue, todayDateInputValue } from "./lib/date";
@@ -29,6 +28,7 @@ import { groupTasks, type StatusFilter } from "./lib/group-tasks";
 
 export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
   const [filter, setFilter] = useState<StatusFilter>("open");
+  const [importantOnly, setImportantOnly] = useState(false);
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] =
     useState<ProjectFilter>(PROJECT_FILTER_ALL);
@@ -62,6 +62,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     return tasks
       .filter((t) => {
         if (filter !== "all" && t.status !== filter) return false;
+        if (importantOnly && !t.important) return false;
         if (projectFilter.kind === "none" && t.projectName) return false;
         if (
           projectFilter.kind === "named" &&
@@ -72,7 +73,14 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
         return true;
       })
       .sort((a, b) => b.taskNumber - a.taskNumber);
-  }, [tasks, filter, search, projectFilter]);
+  }, [tasks, filter, importantOnly, search, projectFilter]);
+
+  const importantInScope = useMemo(() => {
+    return tasks.filter((t) => {
+      if (filter !== "all" && t.status !== filter) return false;
+      return t.important;
+    }).length;
+  }, [tasks, filter]);
 
   const groups = useMemo(() => groupTasks(filtered, filter), [filtered, filter]);
   const openTask = tasks.find((t) => t.taskNumber === openTaskNumber) ?? null;
@@ -222,14 +230,40 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
             Tasks
           </h1>
         </div>
-        <div style={{ display: "flex", gap: 20, alignItems: "baseline" }}>
-          <Stat label="Open" value={counts.open} tone="#4f46e5" />
-          {counts.important > 0 && (
-            <Stat label="Important" value={counts.important} tone="#f59e0b" />
-          )}
-          {counts.overdue > 0 && (
-            <Stat label="Overdue" value={counts.overdue} tone="#ef4444" />
-          )}
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={() => setShowNewTaskModal(true)}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 9999,
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: "inherit",
+              background: "linear-gradient(90deg,#3525cd,#4f46e5)",
+              color: "#fff",
+              boxShadow: "0 2px 10px rgba(53,37,205,.22)",
+            }}
+          >
+            <svg
+              width={13}
+              height={13}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            New Task
+          </button>
         </div>
       </header>
 
@@ -238,12 +272,14 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
         tabs={tabs}
         filter={filter}
         onFilterChange={setFilter}
+        importantOnly={importantOnly}
+        onImportantOnlyChange={setImportantOnly}
+        importantCount={importantInScope}
         search={search}
         onSearchChange={setSearch}
         projectFilter={projectFilter}
         onProjectFilterChange={setProjectFilter}
         projects={projects}
-        onNewTask={() => setShowNewTaskModal(true)}
       />
 
       {/* List */}
@@ -281,20 +317,20 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
           </div>
         ) : (
           groups.map((g) => (
-            <div key={g.key}>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  padding: "12px 24px 6px",
-                  fontSize: 10,
-                  fontWeight: 500,
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  color: g.tone,
-                }}
-              >
+              <div key={g.key}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "12px 24px 6px",
+                    fontSize: 10,
+                    fontWeight: 500,
+                    letterSpacing: "0.18em",
+                    textTransform: "uppercase",
+                    color: g.tone,
+                  }}
+                >
                 <span>{g.label}</span>
                 <span
                   style={{
@@ -381,3 +417,4 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     </div>
   );
 }
+

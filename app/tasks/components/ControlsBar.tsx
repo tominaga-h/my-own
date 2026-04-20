@@ -31,22 +31,26 @@ export function ControlsBar({
   tabs,
   filter,
   onFilterChange,
+  importantOnly,
+  onImportantOnlyChange,
+  importantCount,
   search,
   onSearchChange,
   projectFilter,
   onProjectFilterChange,
   projects,
-  onNewTask,
 }: {
   tabs: Array<{ key: StatusFilter; label: string; count: number }>;
   filter: StatusFilter;
   onFilterChange: (v: StatusFilter) => void;
+  importantOnly: boolean;
+  onImportantOnlyChange: (v: boolean) => void;
+  importantCount: number;
   search: string;
   onSearchChange: (v: string) => void;
   projectFilter: ProjectFilter;
   onProjectFilterChange: (v: ProjectFilter) => void;
   projects: ProjectDto[];
-  onNewTask: () => void;
 }) {
   const inProjectScope = projectFilter.kind !== "all";
   return (
@@ -105,65 +109,33 @@ export function ControlsBar({
           style={{ height: 24, width: 1, background: "rgba(230,232,234,.8)" }}
         />
 
-        {/* Search */}
-        <div
+        {/* Important toggle */}
+        <button
+          type="button"
+          aria-pressed={importantOnly}
+          onClick={() => onImportantOnlyChange(!importantOnly)}
           style={{
-            flex: 1,
-            minWidth: 240,
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            borderRadius: 12,
-            background: "rgba(255,255,255,.8)",
+            border: "none",
+            cursor: "pointer",
             padding: "6px 12px",
-            boxShadow: "inset 0 0 0 1px rgba(230,232,234,.6)",
+            borderRadius: 10,
+            fontSize: 13,
+            fontWeight: 500,
+            fontFamily: "inherit",
+            background: importantOnly
+              ? "linear-gradient(90deg,#f59e0b,#fbbf24)"
+              : "transparent",
+            color: importantOnly ? "#fff" : "#f59e0b",
+            boxShadow: importantOnly
+              ? "0 2px 8px rgba(245,158,11,.22)"
+              : "none",
           }}
         >
-          <svg
-            width={16}
-            height={16}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{ color: "rgba(70,69,85,.35)", flexShrink: 0 }}
-          >
-            <path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
-          </svg>
-          <input
-            value={search}
-            onChange={(e) => onSearchChange(e.target.value)}
-            placeholder="タイトル・本文で検索…"
-            style={{
-              flex: 1,
-              minWidth: 0,
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              fontSize: 13,
-              color: "#191c1e",
-              fontFamily: "inherit",
-            }}
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => onSearchChange("")}
-              style={{
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                color: "rgba(70,69,85,.45)",
-                fontSize: 11,
-                fontFamily: "inherit",
-              }}
-            >
-              クリア
-            </button>
-          )}
-        </div>
+          Important
+          <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.6 }}>
+            {importantCount}
+          </span>
+        </button>
 
         <div
           style={{ height: 24, width: 1, background: "rgba(230,232,234,.8)" }}
@@ -235,44 +207,65 @@ export function ControlsBar({
           </select>
         </div>
 
+        {/* Search */}
         <div
-          style={{ height: 24, width: 1, background: "rgba(230,232,234,.8)" }}
-        />
-
-        {/* New Task */}
-        <button
-          type="button"
-          onClick={onNewTask}
           style={{
-            border: "none",
-            cursor: "pointer",
-            display: "inline-flex",
+            flex: 1,
+            minWidth: 240,
+            display: "flex",
             alignItems: "center",
-            gap: 6,
-            padding: "7px 14px",
-            borderRadius: 9999,
-            fontSize: 13,
-            fontWeight: 500,
-            fontFamily: "inherit",
-            background: "linear-gradient(90deg,#3525cd,#4f46e5)",
-            color: "#fff",
-            boxShadow: "0 2px 10px rgba(53,37,205,.22)",
+            gap: 10,
+            borderRadius: 12,
+            background: "rgba(255,255,255,.8)",
+            padding: "6px 12px",
+            boxShadow: "inset 0 0 0 1px rgba(230,232,234,.6)",
           }}
         >
           <svg
-            width={13}
-            height={13}
+            width={16}
+            height={16}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            strokeWidth={2.4}
+            strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
+            style={{ color: "rgba(70,69,85,.35)", flexShrink: 0 }}
           >
-            <path d="M12 5v14M5 12h14" />
+            <path d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
           </svg>
-          New Task
-        </button>
+          <input
+            value={search}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="タイトル・本文で検索…"
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 13,
+              color: "#191c1e",
+              fontFamily: "inherit",
+            }}
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => onSearchChange("")}
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                color: "rgba(70,69,85,.45)",
+                fontSize: 11,
+                fontFamily: "inherit",
+              }}
+            >
+              クリア
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
