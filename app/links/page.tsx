@@ -37,9 +37,27 @@ function truncate(text: string, max = 180) {
 }
 
 export default function LinksPage() {
-  const { data } = useSWR<LinksResponse>("/api/links?limit=100");
+  const { data, isLoading } = useSWR<LinksResponse>("/api/links?limit=100");
   const rows = data?.links ?? [];
   const lastSyncedAt = data?.lastSyncAt ?? null;
+  const showSkeleton = isLoading && !data;
+
+  if (showSkeleton) {
+    return (
+      <main className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 lg:px-5">
+        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 animate-pulse">
+          <div className="px-1 py-2">
+            <div className="h-9 w-40 rounded bg-slate-200" />
+          </div>
+          <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-[440px] rounded-xl bg-slate-200" />
+            ))}
+          </section>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
@@ -147,11 +165,6 @@ export default function LinksPage() {
             );
           })}
 
-          {!data && (
-            <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
-              Loading links...
-            </div>
-          )}
           {data && rows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
               まだリンクがありません。Slack 同期を先に走らせてください。
