@@ -29,11 +29,7 @@ export default function TasksPage() {
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
-        <TasksView
-          rows={data?.rows ?? []}
-          remindsMap={data?.remindsMap ?? {}}
-          projectMap={data?.projectMap ?? {}}
-        />
+        <TasksView tasks={data?.tasks ?? []} />
       </div>
     </main>
   );
