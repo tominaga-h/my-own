@@ -2,6 +2,7 @@
 
 import useSWR, { useSWRConfig } from "swr";
 
+import NotesSkeleton from "./NotesSkeleton";
 import NotesView from "./NotesView";
 import { apiFetchJson } from "../../lib/api-client";
 import { useApiKey } from "../providers";
@@ -35,6 +36,7 @@ export default function NotesPage() {
 
   const rows = data?.notes ?? [];
   const lastSyncAt = data?.lastSyncAt ?? null;
+  const showSkeleton = isLoading && !data;
 
   async function handleCreateNote(body: string) {
     const result = await apiFetchJson<{ note: NotesResponse["notes"][number] }>(
@@ -62,6 +64,10 @@ export default function NotesPage() {
 
     await Promise.all(NOTE_QUERY_KEYS.map((key) => mutate(key)));
     return result.note ?? null;
+  }
+
+  if (showSkeleton) {
+    return <NotesSkeleton />;
   }
 
   return (

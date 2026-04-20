@@ -3,6 +3,8 @@
 /* eslint-disable @next/next/no-img-element */
 import useSWR from "swr";
 
+import LinksSkeleton from "./LinksSkeleton";
+
 type SlackAttachment = {
   title?: string;
   text?: string;
@@ -37,9 +39,14 @@ function truncate(text: string, max = 180) {
 }
 
 export default function LinksPage() {
-  const { data } = useSWR<LinksResponse>("/api/links?limit=100");
+  const { data, isLoading } = useSWR<LinksResponse>("/api/links?limit=100");
   const rows = data?.links ?? [];
   const lastSyncedAt = data?.lastSyncAt ?? null;
+  const showSkeleton = isLoading && !data;
+
+  if (showSkeleton) {
+    return <LinksSkeleton />;
+  }
 
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
@@ -147,11 +154,6 @@ export default function LinksPage() {
             );
           })}
 
-          {!data && (
-            <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
-              Loading links...
-            </div>
-          )}
           {data && rows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
               まだリンクがありません。Slack 同期を先に走らせてください。
