@@ -1,110 +1,81 @@
 export default function TasksSkeleton() {
   return (
     <main className="min-h-screen px-3 py-3 sm:px-4 sm:py-4 lg:px-5">
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-3 animate-pulse">
-        <div className="flex flex-wrap items-baseline justify-between gap-3 px-1 py-2">
+      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 animate-pulse">
+        <header className="flex items-end justify-between px-1 pt-1">
           <div>
-            <div className="h-9 w-32 rounded bg-slate-200" />
-            <div className="mt-2 h-4 w-28 rounded bg-slate-200/70" />
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="h-3 w-16 rounded bg-slate-200/70" />
             <div className="h-3 w-20 rounded bg-slate-200/70" />
-            <div className="h-3 w-20 rounded bg-slate-200/70" />
+            <div className="mt-2 h-8 w-28 rounded bg-slate-200" />
           </div>
-        </div>
+          <div className="h-8 w-28 rounded-full bg-slate-200" />
+        </header>
 
-        <div className="rounded-2xl border border-slate-100 bg-white px-5 py-4">
+        <div className="rounded-2xl bg-white/70 px-5 py-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex gap-0.5">
               {Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-8 w-20 rounded-lg bg-slate-200" />
               ))}
             </div>
-            <div className="h-6 w-px bg-slate-100" />
-            <div className="flex min-w-[240px] flex-1 items-center gap-3 rounded-xl border border-slate-100 bg-white px-3 py-2">
+            <div className="h-6 w-px bg-slate-200/70" />
+            <div className="h-8 w-28 rounded-lg bg-slate-200" />
+            <div className="h-6 w-px bg-slate-200/70" />
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2">
+              <div className="h-3 w-3 rounded bg-slate-200" />
+              <div className="h-4 w-24 rounded bg-slate-200/70" />
+            </div>
+            <div className="flex min-w-[240px] flex-1 items-center gap-3 rounded-xl border border-slate-200/60 bg-white/80 px-3 py-2">
               <div className="h-4 w-4 rounded bg-slate-200" />
               <div className="h-4 w-40 rounded bg-slate-200/70" />
             </div>
-            <div className="h-9 w-36 rounded-xl border border-slate-100 bg-white" />
           </div>
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_320px]">
-          <div className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
-            <div className="flex items-center gap-3 bg-slate-100/60 px-5 py-2">
-              <div className="h-3 w-5" />
-              <div className="h-3 w-10 rounded bg-slate-200/70" />
-              <div className="h-3 flex-1 rounded bg-slate-200/70" />
-              <div className="h-3 w-16 rounded bg-slate-200/70" />
-              <div className="h-3 w-20 rounded bg-slate-200/70" />
-            </div>
-            <div>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-3 px-5 py-[9px]"
-                >
-                  <div className="flex w-5 justify-center">
-                    <div className="h-[7px] w-[7px] rounded-full bg-slate-200" />
-                  </div>
-                  <div className="h-3 w-8 rounded bg-slate-200/70" />
-                  <div className="flex min-w-0 flex-1 items-center gap-1.5">
-                    <div
-                      className="h-3 rounded bg-slate-200"
-                      style={{ width: `${50 + ((i * 7) % 35)}%` }}
-                    />
-                  </div>
-                  <div className="h-3 w-10 rounded bg-slate-200/70" />
-                  <div className="h-3 w-16 rounded bg-slate-200/70" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <aside className="overflow-hidden rounded-2xl border border-slate-100 bg-white">
-            <div className="bg-slate-100/60 px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-slate-200" />
-                <div className="h-3 w-24 rounded bg-slate-200/70" />
-                <div className="ml-auto h-4 w-12 rounded bg-slate-200" />
-              </div>
-              <div className="mt-2 space-y-2">
-                <div className="h-4 w-4/5 rounded bg-slate-200" />
-                <div className="h-4 w-3/5 rounded bg-slate-200" />
-              </div>
-            </div>
-
-            <div className="space-y-2 px-3 py-3">
-              <div className="grid grid-cols-2 gap-1">
-                <div className="rounded-xl bg-slate-100/60 px-3 py-2 space-y-1">
-                  <div className="h-3 w-10 rounded bg-slate-200/70" />
-                  <div className="h-4 w-24 rounded bg-slate-200" />
-                </div>
-                <div className="rounded-xl bg-slate-100/60 px-3 py-2 space-y-1">
-                  <div className="h-3 w-14 rounded bg-slate-200/70" />
-                  <div className="h-4 w-24 rounded bg-slate-200" />
-                </div>
-              </div>
-              <div className="rounded-xl bg-slate-100/60 px-3 py-2 space-y-1">
-                <div className="h-3 w-14 rounded bg-slate-200/70" />
-                <div className="h-4 w-28 rounded bg-slate-200" />
-              </div>
-              <div className="rounded-xl bg-slate-100/60 px-3 py-2 space-y-1">
-                <div className="h-3 w-16 rounded bg-slate-200/70" />
-                <div className="flex flex-wrap gap-2">
-                  <div className="h-4 w-20 rounded bg-slate-200" />
-                  <div className="h-4 w-20 rounded bg-slate-200" />
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-1 pt-1">
-                <div className="h-4 w-16 rounded bg-slate-200/70" />
-                <div className="h-4 w-24 rounded bg-slate-200/70" />
-              </div>
-            </div>
-          </aside>
-        </div>
+        <section className="overflow-hidden rounded-xl bg-white/70 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+          <GroupBlock rows={4} />
+          <GroupBlock rows={3} />
+          <GroupBlock rows={5} />
+        </section>
       </div>
     </main>
+  );
+}
+
+function GroupBlock({ rows }: { rows: number }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 px-6 pb-1.5 pt-3">
+        <div className="h-3 w-16 rounded bg-slate-200/70" />
+        <div className="h-px flex-1 bg-slate-200/50" />
+        <div className="h-3 w-6 rounded bg-slate-200/70" />
+      </div>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          className="flex items-start gap-3.5 px-6 py-[14px]"
+        >
+          <div className="mt-0.5 h-[22px] w-[22px] shrink-0 rounded-full bg-slate-200" />
+          <div className="mt-[6px] h-3 w-10 shrink-0 rounded bg-slate-200/70" />
+          <div className="flex min-w-0 flex-1 flex-col gap-[6px]">
+            <div
+              className="h-4 rounded bg-slate-200"
+              style={{ width: `${50 + ((i * 17) % 38)}%` }}
+            />
+            {i % 3 !== 2 && (
+              <div className="flex flex-wrap items-center gap-3">
+                {i % 2 === 0 && (
+                  <div className="h-3 w-24 rounded bg-slate-200/70" />
+                )}
+                <div className="h-3 w-16 rounded bg-slate-200/70" />
+                {i % 3 === 0 && (
+                  <div className="h-3 w-20 rounded bg-slate-200/70" />
+                )}
+              </div>
+            )}
+          </div>
+          <div className="mt-0.5 h-5 w-5 shrink-0 rounded bg-slate-200/70" />
+        </div>
+      ))}
+    </div>
   );
 }
