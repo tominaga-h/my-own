@@ -2,6 +2,7 @@
 
 import useSWR from "swr";
 
+import TasksSkeleton from "./TasksSkeleton";
 import TasksView from "./TasksView";
 import { ApiError } from "../../lib/api-client";
 import type { TaskListResponse } from "../../lib/my-task-sync";
@@ -21,20 +22,14 @@ function errorMessage(error: unknown): string {
 export default function TasksPage() {
   const { data, isLoading, error } = useSWR<TaskListResponse>("/api/tasks");
 
+  if (isLoading && !data) {
+    return <TasksSkeleton />;
+  }
+
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
       <div className="mx-auto flex max-w-[1600px] flex-col gap-3">
-        {error ? (
-          <div className="rounded-2xl border border-red-200/60 bg-red-50/60 px-5 py-4 text-sm text-red-600">
-            {errorMessage(error)}
-          </div>
-        ) : isLoading && !data ? (
-          <div className="rounded-2xl border border-[#e6e8ea]/60 bg-[#ffffff]/70 px-5 py-4 text-sm text-[#464555]/50">
-            Loading tasks...
-          </div>
-        ) : (
-          <TasksView tasks={data?.tasks ?? []} />
-        )}
+        <TasksView tasks={data?.tasks ?? []} />
       </div>
     </main>
   );
