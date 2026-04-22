@@ -1,7 +1,7 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useDeferredValue, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
 import {
@@ -16,8 +16,16 @@ import {
   type LinkSearchRecord,
 } from "../../lib/links/search";
 import { shuffle } from "../../lib/links/shuffle";
+import {
+  DEFAULT_VIEW_MODE,
+  VIEW_MODE_STORAGE_KEY,
+  parseViewMode,
+  type ViewMode,
+} from "../../lib/links/viewMode";
 
+import LinksCompactRow from "./LinksCompactRow";
 import LinksSkeleton from "./LinksSkeleton";
+import LinksViewToggle from "./LinksViewToggle";
 
 type LinksResponse = {
   links: LinkRow[];
@@ -36,6 +44,27 @@ export default function LinksPage() {
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim();
   const [randomOrderIds, setRandomOrderIds] = useState<number[] | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(DEFAULT_VIEW_MODE);
+
+  // マウント後に localStorage から復元。SSR と初期レンダリングは固定の "card" を使用して
+  // hydration mismatch を避ける。
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      setViewMode(parseViewMode(raw));
+    } catch {
+      // localStorage が使えない環境（プライベートブラウジング等）は無視。
+    }
+  }, []);
+
+  const handleViewModeChange = (next: ViewMode) => {
+    setViewMode(next);
+    try {
+      window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, next);
+    } catch {
+      // localStorage が使えない環境では保存を諦め、現セッションのみ反映する。
+    }
+  };
 
   const displayRows = useMemo<DisplayFields[]>(
     () => rows.map(deriveDisplayFields),
@@ -124,6 +153,10 @@ export default function LinksPage() {
             >
               ランダム
             </button>
+            <LinksViewToggle
+              value={viewMode}
+              onChange={handleViewModeChange}
+            />
             {normalizedQuery ? (
               <span className="whitespace-nowrap text-xs text-slate-400">
                 {filteredRows.length} 件
@@ -132,101 +165,125 @@ export default function LinksPage() {
           </div>
         </div>
 
-        <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
-          {filteredRows.map((d, index) => {
-            const descriptionSnippet = d.description
-              ? truncateAroundMatch(d.description, DESCRIPTION_MAX, normalizedQuery)
-              : "";
+        {viewMode === "card" ? (
+          <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
+            {filteredRows.map((d, index) => {
+              const descriptionSnippet = d.description
+                ? truncateAroundMatch(d.description, DESCRIPTION_MAX, normalizedQuery)
+                : "";
 
-            return (
-              <article
-                key={d.id}
-                className={[
-                  "group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
-                  d.imageUrl ? "" : "border-l-2 border-l-indigo-200",
-                ].join(" ")}
-              >
-                {d.imageUrl ? (
-                  <a
-                    className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
-                    href={d.targetUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <img
-                      src={d.imageUrl}
-                      alt=""
-                      className="h-full w-full object-contain bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] transition duration-300 group-hover:scale-[1.03]"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/1 to-transparent" />
-                    <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
-                      {d.serviceName}
-                    </div>
-                  </a>
-                ) : null}
-
-                <div className="space-y-4 p-5">
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
-                        #{d.id}
-                      </span>
-                      {!d.imageUrl && (
-                        <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold tracking-[0.16em] text-indigo-600">
-                          {d.serviceName}
-                        </span>
-                      )}
-                    </div>
-                    <span>{new Date(d.createdAt).toLocaleDateString("ja-JP")}</span>
-                  </div>
-
-                  <div className="space-y-2 md:min-h-[232px]">
-                    <h2 className="text-lg font-semibold leading-7 text-slate-900">
-                      <a
-                        href={d.targetUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="transition hover:text-indigo-600"
-                      >
-                        {highlightMatches(d.title, normalizedQuery)}
-                      </a>
-                    </h2>
-                    {descriptionSnippet ? (
-                      <p className="text-sm leading-6 text-slate-500">
-                        {highlightMatches(descriptionSnippet, normalizedQuery)}
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+              return (
+                <article
+                  key={d.id}
+                  className={[
+                    "group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
+                    d.imageUrl ? "" : "border-l-2 border-l-indigo-200",
+                  ].join(" ")}
+                >
+                  {d.imageUrl ? (
                     <a
-                      href={d.rawUrl}
+                      className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
+                      href={d.targetUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="max-w-full truncate text-sm font-medium text-slate-700 transition hover:text-indigo-600"
-                      title={d.sourceLabel}
                     >
-                      {highlightMatches(d.sourceLabel, normalizedQuery)}
+                      <img
+                        src={d.imageUrl}
+                        alt=""
+                        className="h-full w-full object-contain bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] transition duration-300 group-hover:scale-[1.03]"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/1 to-transparent" />
+                      <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
+                        {d.serviceName}
+                      </div>
                     </a>
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
-                      {index + 1}
-                    </span>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+                  ) : null}
 
-          {data && rows.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
-              まだリンクがありません。Slack 同期を先に走らせてください。
-            </div>
-          ) : data && rows.length > 0 && filteredRows.length === 0 ? (
-            <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
-              「{normalizedQuery}」に一致するリンクはありません。
-            </div>
-          ) : null}
-        </section>
+                  <div className="space-y-4 p-5">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+                          #{d.id}
+                        </span>
+                        {!d.imageUrl && (
+                          <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold tracking-[0.16em] text-indigo-600">
+                            {d.serviceName}
+                          </span>
+                        )}
+                      </div>
+                      <span>{new Date(d.createdAt).toLocaleDateString("ja-JP")}</span>
+                    </div>
+
+                    <div className="space-y-2 md:min-h-[232px]">
+                      <h2 className="text-lg font-semibold leading-7 text-slate-900">
+                        <a
+                          href={d.targetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="transition hover:text-indigo-600"
+                        >
+                          {highlightMatches(d.title, normalizedQuery)}
+                        </a>
+                      </h2>
+                      {descriptionSnippet ? (
+                        <p className="text-sm leading-6 text-slate-500">
+                          {highlightMatches(descriptionSnippet, normalizedQuery)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                      <a
+                        href={d.rawUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="max-w-full truncate text-sm font-medium text-slate-700 transition hover:text-indigo-600"
+                        title={d.sourceLabel}
+                      >
+                        {highlightMatches(d.sourceLabel, normalizedQuery)}
+                      </a>
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
+                        {index + 1}
+                      </span>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+
+            {data && rows.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
+                まだリンクがありません。Slack 同期を先に走らせてください。
+              </div>
+            ) : data && rows.length > 0 && filteredRows.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
+                「{normalizedQuery}」に一致するリンクはありません。
+              </div>
+            ) : null}
+          </section>
+        ) : (
+          <section>
+            {filteredRows.length > 0 ? (
+              <ul className="divide-y divide-slate-100 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                {filteredRows.map((d) => (
+                  <LinksCompactRow
+                    key={d.id}
+                    row={d}
+                    normalizedQuery={normalizedQuery}
+                  />
+                ))}
+              </ul>
+            ) : data && rows.length === 0 ? (
+              <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm">
+                まだリンクがありません。Slack 同期を先に走らせてください。
+              </div>
+            ) : data && rows.length > 0 ? (
+              <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm">
+                「{normalizedQuery}」に一致するリンクはありません。
+              </div>
+            ) : null}
+          </section>
+        )}
       </div>
     </main>
   );
