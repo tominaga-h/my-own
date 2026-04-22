@@ -69,7 +69,7 @@ export default function Header() {
           {/* Logo */}
           <Link href="/" className="group flex shrink-0 items-center gap-2">
             <Image src="/logo.svg" alt="my-own" width={45} height={45} />
-            <span className="hidden text-[15px] font-semibold tracking-tight text-slate-800 transition-colors group-hover:text-[#3525cd] sm:inline">
+            <span className="text-[15px] font-semibold tracking-tight text-slate-800 transition-colors group-hover:text-[#3525cd]">
               my-own
             </span>
           </Link>
@@ -132,9 +132,7 @@ export default function Header() {
                     />
                   </svg>
                 )}
-                <span className="hidden sm:inline">
-                  {isSyncing ? "同期中…" : "同期"}
-                </span>
+                <span>{isSyncing ? "同期中…" : "同期"}</span>
               </button>
             )}
 
