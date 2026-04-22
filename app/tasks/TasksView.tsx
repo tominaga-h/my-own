@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR, { useSWRConfig } from "swr";
 
-import { apiFetchJson } from "../../lib/api-client";
+import { ApiError, apiFetchJson } from "../../lib/api-client";
 import type {
   ProjectListResponse,
+  ProjectResponse,
   TaskCreateBody,
   TaskDto,
   TaskPatchBody,
@@ -21,6 +22,7 @@ import { DetailModal } from "./components/DetailModal";
 import { EditModal } from "./components/EditModal";
 import { ModalShell } from "./components/ModalShell";
 import { NewTaskModal } from "./components/NewTaskModal";
+import { ProjectManagerModal } from "./components/ProjectManagerModal";
 import { TaskRow } from "./components/TaskRow";
 import { formatApiError } from "./lib/api-error";
 import { isOverdue, todayDateInputValue } from "./lib/date";
@@ -36,6 +38,7 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
   const [mode, setMode] = useState<"detail" | "edit">("detail");
   const [actionError, setActionError] = useState<string | null>(null);
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const [showProjectManager, setShowProjectManager] = useState(false);
 
   const apiKey = useApiKey();
   const { data: projectsData } = useSWR<ProjectListResponse>("/api/projects");
@@ -110,6 +113,17 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [showNewTaskModal, openTaskNumber]);
 
+  useEffect(() => {
+    // プロジェクト管理モーダル。他モーダルが開いていれば Esc はそちらに委ねる。
+    if (!showProjectManager || openTaskNumber !== null || showNewTaskModal)
+      return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowProjectManager(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showProjectManager, openTaskNumber, showNewTaskModal]);
+
   const { mutate } = useSWRConfig();
 
   async function patchTask(taskNumber: number, patch: TaskPatchBody) {
@@ -125,6 +139,44 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
       method: "POST",
       body: JSON.stringify(body),
     });
+    await mutate("/api/tasks");
+  }
+
+  async function createProject(name: string) {
+    await apiFetchJson<ProjectResponse>(apiKey, "/api/projects", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    });
+    await mutate("/api/projects");
+    await mutate("/api/tasks");
+  }
+
+  async function updateProject(id: number, name: string) {
+    await apiFetchJson<ProjectResponse>(apiKey, `/api/projects/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    });
+    await mutate("/api/projects");
+    await mutate("/api/tasks");
+  }
+
+  async function deleteProject(id: number) {
+    // DELETE は 204 のため apiFetchJson を使わず直接 fetch。エラーは ApiError で揃える。
+    const resp = await fetch(`/api/projects/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    if (!resp.ok) {
+      let message: string | undefined;
+      try {
+        const body = await resp.clone().json();
+        if (body && typeof body.error === "string") message = body.error;
+      } catch {
+        /* non-JSON */
+      }
+      throw new ApiError(resp.status, message);
+    }
+    await mutate("/api/projects");
     await mutate("/api/tasks");
   }
 
@@ -230,7 +282,41 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
             Tasks
           </h1>
         </div>
-        <div style={{ display: "flex", alignItems: "center" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setShowProjectManager(true)}
+            style={{
+              border: "none",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "7px 14px",
+              borderRadius: 9999,
+              fontSize: 13,
+              fontWeight: 500,
+              fontFamily: "inherit",
+              background: "rgba(242,244,246,.8)",
+              color: "#464555",
+              boxShadow: "inset 0 0 0 1px rgba(226,232,240,.7)",
+            }}
+          >
+            <svg
+              width={13}
+              height={13}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2.2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 7l9-4 9 4-9 4-9-4z" />
+              <path d="M3 7v10l9 4 9-4V7" />
+            </svg>
+            プロジェクト管理
+          </button>
           <button
             type="button"
             onClick={() => setShowNewTaskModal(true)}
@@ -411,6 +497,18 @@ export default function TasksView({ tasks }: { tasks: TaskDto[] }) {
             onCancel={() => setShowNewTaskModal(false)}
             onCreate={createTask}
             onCreated={() => setShowNewTaskModal(false)}
+          />
+        </ModalShell>
+      )}
+
+      {showProjectManager && (
+        <ModalShell onClose={() => setShowProjectManager(false)}>
+          <ProjectManagerModal
+            projects={projects}
+            onClose={() => setShowProjectManager(false)}
+            onCreate={createProject}
+            onUpdate={updateProject}
+            onDelete={deleteProject}
           />
         </ModalShell>
       )}

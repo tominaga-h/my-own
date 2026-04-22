@@ -4,6 +4,7 @@ import {
   isRfc3339Datetime,
   isTaskStatus,
   MtsValidationError,
+  pickProjectBody,
   pickTaskCreate,
   pickTaskPatch,
 } from "../../lib/my-task-sync";
@@ -151,5 +152,48 @@ describe("pickTaskPatch", () => {
     expect(
       pickTaskPatch({ projectName: null, due: null, doneAt: null }),
     ).toEqual({ projectName: null, due: null, doneAt: null });
+  });
+});
+
+describe("pickProjectBody", () => {
+  it.each([null, "str", 42, true, []])("rejects non-object %p", (v) => {
+    expect(() => pickProjectBody(v)).toThrow(MtsValidationError);
+  });
+
+  it("rejects missing name", () => {
+    expect(() => pickProjectBody({})).toThrow(/name is required/);
+  });
+
+  it("rejects empty string", () => {
+    expect(() => pickProjectBody({ name: "" })).toThrow(/name must not be empty/);
+  });
+
+  it("rejects whitespace-only name", () => {
+    expect(() => pickProjectBody({ name: "   " })).toThrow(/name must not be empty/);
+  });
+
+  it("rejects name longer than 200 chars", () => {
+    expect(() => pickProjectBody({ name: "a".repeat(201) })).toThrow(
+      /1\.\.200 chars/,
+    );
+  });
+
+  it("accepts exactly 200 chars", () => {
+    const name = "a".repeat(200);
+    expect(pickProjectBody({ name })).toEqual({ name });
+  });
+
+  it("rejects unknown fields", () => {
+    expect(() => pickProjectBody({ name: "a", extra: 1 })).toThrow(
+      /unknown field: extra/,
+    );
+  });
+
+  it("rejects non-string name", () => {
+    expect(() => pickProjectBody({ name: 123 })).toThrow(/must be a string/);
+  });
+
+  it("trims the name", () => {
+    expect(pickProjectBody({ name: "  hello  " })).toEqual({ name: "hello" });
   });
 });
