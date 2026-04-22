@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { mutate } from "swr";
 
 import { useApiKey } from "../providers";
@@ -20,7 +20,21 @@ export default function Header() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [isSyncing, setIsSyncing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const apiKey = useApiKey();
+
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
 
   if (pathname === "/auth/signin") return null;
 
@@ -40,34 +54,33 @@ export default function Header() {
     }
   };
 
+  const pillClass = (active: boolean) =>
+    [
+      "relative rounded-full px-4 py-1.5 text-sm font-medium transition-all",
+      active
+        ? "bg-gradient-to-r from-[#3525cd] to-[#4f46e5] text-white shadow-[0_2px_12px_rgba(53,37,205,0.2)]"
+        : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-800",
+    ].join(" ");
+
   return (
     <header className="sticky top-0 z-50">
       <div className="bg-white">
-        <div className="mx-auto flex h-14 max-w-[1600px] items-center justify-between px-5">
+        <div className="mx-auto flex h-14 max-w-[1600px] flex-nowrap items-center justify-between gap-2 px-3 sm:gap-3 sm:px-5">
           {/* Logo */}
-          <Link href="/" className="group flex items-center gap-2">
+          <Link href="/" className="group flex shrink-0 items-center gap-2">
             <Image src="/logo.svg" alt="my-own" width={45} height={45} />
-            <span className="text-[15px] font-semibold tracking-tight text-slate-800 transition-colors group-hover:text-[#3525cd]">
+            <span className="hidden text-[15px] font-semibold tracking-tight text-slate-800 transition-colors group-hover:text-[#3525cd] sm:inline">
               my-own
             </span>
           </Link>
 
           {/* Navigation + User */}
-          <div className="flex items-center gap-3">
-            <nav className="flex items-center gap-1">
+          <div className="flex flex-nowrap items-center gap-1 sm:gap-3">
+            <nav className="hidden items-center gap-1 sm:flex">
               {navItems.map(({ href, label }) => {
                 const active = pathname?.startsWith(href) ?? false;
                 return (
-                  <Link
-                    key={href}
-                    href={href}
-                    className={[
-                      "relative rounded-full px-4 py-1.5 text-sm font-medium transition-all",
-                      active
-                        ? "bg-gradient-to-r from-[#3525cd] to-[#4f46e5] text-white shadow-[0_2px_12px_rgba(53,37,205,0.2)]"
-                        : "text-slate-500 hover:bg-slate-100/80 hover:text-slate-800",
-                    ].join(" ")}
-                  >
+                  <Link key={href} href={href} className={pillClass(active)}>
                     {label}
                   </Link>
                 );
@@ -119,24 +132,110 @@ export default function Header() {
                     />
                   </svg>
                 )}
-                {isSyncing ? "同期中…" : "同期"}
+                <span className="hidden sm:inline">
+                  {isSyncing ? "同期中…" : "同期"}
+                </span>
               </button>
             )}
 
             {session?.user && (
               <button
                 onClick={() => signOut()}
-                className="rounded-full px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="hidden rounded-full px-3 py-1.5 text-xs font-medium text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 sm:inline-flex"
               >
                 Sign out
               </button>
             )}
+
+            {/* Hamburger (mobile only) */}
+            <button
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-nav"
+              aria-label="メニュー"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-slate-100 sm:hidden"
+            >
+              <svg
+                className="h-5 w-5"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden
+              >
+                {menuOpen ? (
+                  <path
+                    d="M6 6l12 12M18 6L6 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                ) : (
+                  <path
+                    d="M4 7h16M4 12h16M4 17h16"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Tonal bottom edge — not a border, a gradient fade */}
       <div className="h-px bg-gradient-to-r from-transparent via-slate-200/60 to-transparent" />
+
+      {/* Mobile drawer */}
+      {menuOpen && (
+        <div className="sm:hidden">
+          <button
+            type="button"
+            aria-label="メニューを閉じる"
+            onClick={() => setMenuOpen(false)}
+            className="fixed inset-0 top-14 z-40 cursor-default bg-slate-900/20 backdrop-blur-sm"
+          />
+          <div
+            id="mobile-nav"
+            role="dialog"
+            aria-modal="false"
+            className="absolute inset-x-0 top-full z-50 border-b border-slate-200 bg-white shadow-[0_12px_24px_rgba(15,23,42,0.08)]"
+          >
+            <nav className="flex flex-col px-3 py-2">
+              {navItems.map(({ href, label }) => {
+                const active = pathname?.startsWith(href) ?? false;
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    className={[
+                      "rounded-xl px-4 py-3 text-base font-medium transition-colors",
+                      active
+                        ? "bg-gradient-to-r from-[#3525cd] to-[#4f46e5] text-white"
+                        : "text-slate-700 hover:bg-slate-100",
+                    ].join(" ")}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
+              {session?.user && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    signOut();
+                  }}
+                  className="mt-1 rounded-xl px-4 py-3 text-left text-base font-medium text-slate-500 transition-colors hover:bg-slate-100"
+                >
+                  Sign out
+                </button>
+              )}
+            </nav>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
