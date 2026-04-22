@@ -1,9 +1,12 @@
 "use client";
 
 /* eslint-disable @next/next/no-img-element */
+import { useDeferredValue, useMemo, useState } from "react";
 import useSWR from "swr";
 
+import { highlightMatches } from "./highlight";
 import LinksSkeleton from "./LinksSkeleton";
+import { filterLinksByQuery, type LinkSearchRecord } from "./search";
 
 type SlackAttachment = {
   title?: string;
@@ -40,9 +43,40 @@ function truncate(text: string, max = 180) {
 
 export default function LinksPage() {
   const { data, isLoading } = useSWR<LinksResponse>("/api/links?limit=100");
-  const rows = data?.links ?? [];
+  const rows = useMemo(() => data?.links ?? [], [data?.links]);
   const lastSyncedAt = data?.lastSyncAt ?? null;
   const showSkeleton = isLoading && !data;
+
+  const [query, setQuery] = useState("");
+  const deferredQuery = useDeferredValue(query);
+  const normalizedQuery = deferredQuery.trim();
+
+  const searchRecords = useMemo<LinkSearchRecord[]>(
+    () =>
+      rows.map((row) => {
+        const attachments = asAttachments(row.slackAttachments);
+        const attachment = attachments[0];
+        return {
+          id: row.id,
+          title: row.title ?? attachment?.title ?? row.url,
+          url: row.url,
+          description:
+            row.description ?? attachment?.text ?? attachment?.fallback ?? "",
+        };
+      }),
+    [rows],
+  );
+
+  const matchedIds = useMemo(() => {
+    if (!normalizedQuery) return null;
+    return new Set(
+      filterLinksByQuery(searchRecords, normalizedQuery).map((r) => r.id),
+    );
+  }, [searchRecords, normalizedQuery]);
+
+  const filteredRows = matchedIds
+    ? rows.filter((row) => matchedIds.has(row.id))
+    : rows;
 
   if (showSkeleton) {
     return <LinksSkeleton />;
@@ -65,10 +99,28 @@ export default function LinksPage() {
               </p>
             )}
           </div>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <label htmlFor="links-search" className="sr-only">
+              リンクを検索
+            </label>
+            <input
+              id="links-search"
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="タイトル / URL / description を検索"
+              className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 sm:w-80"
+            />
+            {normalizedQuery ? (
+              <span className="whitespace-nowrap text-xs text-slate-400">
+                {filteredRows.length} 件
+              </span>
+            ) : null}
+          </div>
         </div>
 
         <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
-          {rows.map((row, index) => {
+          {filteredRows.map((row, index) => {
             const attachments = asAttachments(row.slackAttachments);
             const attachment = attachments[0];
             const title = row.title ?? attachment?.title ?? row.url;
@@ -129,12 +181,12 @@ export default function LinksPage() {
                         rel="noreferrer"
                         className="transition hover:text-indigo-600"
                       >
-                        {title}
+                        {highlightMatches(title, normalizedQuery)}
                       </a>
                     </h2>
                     {description ? (
                       <p className="text-sm leading-6 text-slate-500">
-                        {truncate(description)}
+                        {highlightMatches(truncate(description), normalizedQuery)}
                       </p>
                     ) : null}
                   </div>
@@ -147,7 +199,7 @@ export default function LinksPage() {
                       className="max-w-full truncate text-sm font-medium text-slate-700 transition hover:text-indigo-600"
                       title={sourceLabel}
                     >
-                      {sourceLabel}
+                      {highlightMatches(sourceLabel, normalizedQuery)}
                     </a>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
                       {index + 1}
@@ -161,6 +213,10 @@ export default function LinksPage() {
           {data && rows.length === 0 ? (
             <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
               まだリンクがありません。Slack 同期を先に走らせてください。
+            </div>
+          ) : data && rows.length > 0 && filteredRows.length === 0 ? (
+            <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
+              「{normalizedQuery}」に一致するリンクはありません。
             </div>
           ) : null}
         </section>
