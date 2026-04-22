@@ -4,42 +4,21 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import useSWR from "swr";
 
+import { deriveDisplayFields, type DisplayFields, type LinkRow } from "./display";
 import { highlightMatches } from "./highlight";
 import LinksSkeleton from "./LinksSkeleton";
-import { filterLinksByQuery, type LinkSearchRecord } from "./search";
-
-type SlackAttachment = {
-  title?: string;
-  text?: string;
-  image_url?: string;
-  thumb_url?: string;
-  service_name?: string;
-  original_url?: string;
-  title_link?: string;
-  fallback?: string;
-};
+import {
+  filterLinksByQuery,
+  truncateAroundMatch,
+  type LinkSearchRecord,
+} from "./search";
 
 type LinksResponse = {
-  links: Array<{
-    id: number;
-    url: string;
-    title: string | null;
-    description: string | null;
-    slackAttachments: unknown[] | null;
-    createdAt: string;
-    postedAt: string;
-  }>;
+  links: LinkRow[];
   lastSyncAt: string | null;
 };
 
-function asAttachments(value: unknown) {
-  return Array.isArray(value) ? (value as SlackAttachment[]) : [];
-}
-
-function truncate(text: string, max = 180) {
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 1)}…`;
-}
+const DESCRIPTION_MAX = 180;
 
 export default function LinksPage() {
   const { data, isLoading } = useSWR<LinksResponse>("/api/links?limit=100");
@@ -51,32 +30,25 @@ export default function LinksPage() {
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim();
 
-  const searchRecords = useMemo<LinkSearchRecord[]>(
-    () =>
-      rows.map((row) => {
-        const attachments = asAttachments(row.slackAttachments);
-        const attachment = attachments[0];
-        return {
-          id: row.id,
-          title: row.title ?? attachment?.title ?? row.url,
-          url: row.url,
-          description:
-            row.description ?? attachment?.text ?? attachment?.fallback ?? "",
-        };
-      }),
+  const displayRows = useMemo<DisplayFields[]>(
+    () => rows.map(deriveDisplayFields),
     [rows],
   );
 
-  const matchedIds = useMemo(() => {
-    if (!normalizedQuery) return null;
-    return new Set(
+  const filteredRows = useMemo<DisplayFields[]>(() => {
+    if (!normalizedQuery) return displayRows;
+    const searchRecords: LinkSearchRecord[] = displayRows.map((d) => ({
+      id: d.id,
+      title: d.title,
+      url: d.rawUrl,
+      sourceLabel: d.sourceLabel,
+      description: d.description,
+    }));
+    const matchedIds = new Set(
       filterLinksByQuery(searchRecords, normalizedQuery).map((r) => r.id),
     );
-  }, [searchRecords, normalizedQuery]);
-
-  const filteredRows = matchedIds
-    ? rows.filter((row) => matchedIds.has(row.id))
-    : rows;
+    return displayRows.filter((d) => matchedIds.has(d.id));
+  }, [displayRows, normalizedQuery]);
 
   if (showSkeleton) {
     return <LinksSkeleton />;
@@ -120,40 +92,34 @@ export default function LinksPage() {
         </div>
 
         <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
-          {filteredRows.map((row, index) => {
-            const attachments = asAttachments(row.slackAttachments);
-            const attachment = attachments[0];
-            const title = row.title ?? attachment?.title ?? row.url;
-            const description =
-              row.description ?? attachment?.text ?? attachment?.fallback ?? "";
-            const imageUrl = attachment?.image_url ?? attachment?.thumb_url ?? null;
-            const serviceName = attachment?.service_name ?? "Link";
-            const targetUrl = attachment?.title_link ?? attachment?.original_url ?? row.url;
-            const sourceLabel = attachment?.original_url ?? row.url;
+          {filteredRows.map((d, index) => {
+            const descriptionSnippet = d.description
+              ? truncateAroundMatch(d.description, DESCRIPTION_MAX, normalizedQuery)
+              : "";
 
             return (
               <article
-                key={row.id}
+                key={d.id}
                 className={[
                   "group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
-                  imageUrl ? "" : "border-l-2 border-l-indigo-200",
+                  d.imageUrl ? "" : "border-l-2 border-l-indigo-200",
                 ].join(" ")}
               >
-                {imageUrl ? (
+                {d.imageUrl ? (
                   <a
                     className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
-                    href={targetUrl}
+                    href={d.targetUrl}
                     target="_blank"
                     rel="noreferrer"
                   >
                     <img
-                      src={imageUrl}
+                      src={d.imageUrl}
                       alt=""
                       className="h-full w-full object-contain bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] transition duration-300 group-hover:scale-[1.03]"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-black/1 to-transparent" />
                     <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
-                      {serviceName}
+                      {d.serviceName}
                     </div>
                   </a>
                 ) : null}
@@ -162,44 +128,44 @@ export default function LinksPage() {
                   <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                     <div className="flex items-center gap-2">
                       <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
-                        #{row.id}
+                        #{d.id}
                       </span>
-                      {!imageUrl && (
+                      {!d.imageUrl && (
                         <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold tracking-[0.16em] text-indigo-600">
-                          {serviceName}
+                          {d.serviceName}
                         </span>
                       )}
                     </div>
-                    <span>{new Date(row.createdAt).toLocaleDateString("ja-JP")}</span>
+                    <span>{new Date(d.createdAt).toLocaleDateString("ja-JP")}</span>
                   </div>
 
                   <div className="space-y-2 md:min-h-[232px]">
                     <h2 className="text-lg font-semibold leading-7 text-slate-900">
                       <a
-                        href={targetUrl}
+                        href={d.targetUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="transition hover:text-indigo-600"
                       >
-                        {highlightMatches(title, normalizedQuery)}
+                        {highlightMatches(d.title, normalizedQuery)}
                       </a>
                     </h2>
-                    {description ? (
+                    {descriptionSnippet ? (
                       <p className="text-sm leading-6 text-slate-500">
-                        {highlightMatches(truncate(description), normalizedQuery)}
+                        {highlightMatches(descriptionSnippet, normalizedQuery)}
                       </p>
                     ) : null}
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
                     <a
-                      href={row.url}
+                      href={d.rawUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="max-w-full truncate text-sm font-medium text-slate-700 transition hover:text-indigo-600"
-                      title={sourceLabel}
+                      title={d.sourceLabel}
                     >
-                      {highlightMatches(sourceLabel, normalizedQuery)}
+                      {highlightMatches(d.sourceLabel, normalizedQuery)}
                     </a>
                     <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.16em] text-slate-400">
                       {index + 1}

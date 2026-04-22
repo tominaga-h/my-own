@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildHighlightSegments,
   filterLinksByQuery,
+  truncateAroundMatch,
   type LinkSearchRecord,
 } from "./search";
 
@@ -23,6 +24,7 @@ const records: LinkSearchRecord[] = [
     id: 3,
     title: "Next.js App Router",
     url: "https://nextjs.org/docs/app",
+    sourceLabel: "https://vercel.com/blog/next-app-router",
     description: "Server components and streaming",
   },
 ];
@@ -43,6 +45,11 @@ describe("filterLinksByQuery", () => {
     expect(result.map((r) => r.id)).toEqual([3]);
   });
 
+  it("matches against the sourceLabel (displayed URL)", () => {
+    const result = filterLinksByQuery(records, "vercel.com");
+    expect(result.map((r) => r.id)).toEqual([3]);
+  });
+
   it("matches against the description", () => {
     const result = filterLinksByQuery(records, "server components");
     expect(result.map((r) => r.id)).toEqual([3]);
@@ -55,16 +62,16 @@ describe("filterLinksByQuery", () => {
 
   it("trims whitespace from the query", () => {
     const result = filterLinksByQuery(records, "  orm  ");
-    expect(result.map((r) => r.id).sort()).toEqual([2]);
+    expect(result.map((r) => r.id)).toEqual([2]);
   });
 
   it("returns an empty list when nothing matches", () => {
     expect(filterLinksByQuery(records, "nonexistent-term-xyz")).toEqual([]);
   });
 
-  it("matches across multiple records", () => {
-    const result = filterLinksByQuery(records, "react");
-    expect(result.map((r) => r.id).sort()).toEqual([1]);
+  it("tolerates missing sourceLabel", () => {
+    const result = filterLinksByQuery(records, "react.dev");
+    expect(result.map((r) => r.id)).toEqual([1]);
   });
 });
 
@@ -75,6 +82,12 @@ describe("buildHighlightSegments", () => {
     ]);
     expect(buildHighlightSegments("hello world", "   ")).toEqual([
       { type: "text", value: "hello world" },
+    ]);
+  });
+
+  it("returns a text segment when the source text is empty", () => {
+    expect(buildHighlightSegments("", "foo")).toEqual([
+      { type: "text", value: "" },
     ]);
   });
 
@@ -96,6 +109,13 @@ describe("buildHighlightSegments", () => {
     ]);
   });
 
+  it("handles adjacent non-overlapping matches", () => {
+    expect(buildHighlightSegments("aaaa", "aa")).toEqual([
+      { type: "match", value: "aa" },
+      { type: "match", value: "aa" },
+    ]);
+  });
+
   it("preserves original casing in the highlighted segments", () => {
     const segments = buildHighlightSegments("Drizzle ORM", "drizzle");
     expect(segments[0]).toEqual({ type: "match", value: "Drizzle" });
@@ -105,5 +125,50 @@ describe("buildHighlightSegments", () => {
     expect(buildHighlightSegments("hello", "xyz")).toEqual([
       { type: "text", value: "hello" },
     ]);
+  });
+});
+
+describe("truncateAroundMatch", () => {
+  it("returns text as-is when shorter than max", () => {
+    expect(truncateAroundMatch("short", 180, "x")).toBe("short");
+  });
+
+  it("truncates from the head with ellipsis when no query is given", () => {
+    const text = "a".repeat(300);
+    const result = truncateAroundMatch(text, 20);
+    expect(result).toHaveLength(20);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("truncates from the head with ellipsis when query does not match", () => {
+    const text = "a".repeat(300);
+    const result = truncateAroundMatch(text, 20, "zzz");
+    expect(result).toHaveLength(20);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("head-truncates when the match is already inside the leading window", () => {
+    const text = "match comes early " + "x".repeat(500);
+    const result = truncateAroundMatch(text, 40, "match");
+    expect(result.includes("match")).toBe(true);
+    expect(result.endsWith("…")).toBe(true);
+    expect(result.startsWith("…")).toBe(false);
+  });
+
+  it("truncates around a match positioned deep in the text", () => {
+    const text = "x".repeat(400) + " MATCHED_TOKEN " + "y".repeat(400);
+    const result = truncateAroundMatch(text, 60, "matched_token");
+    expect(result.toLowerCase().includes("matched_token")).toBe(true);
+    expect(result.startsWith("…")).toBe(true);
+    expect(result.endsWith("…")).toBe(true);
+  });
+
+  it("matches the highlighting function on the truncated output", () => {
+    const text = "x".repeat(400) + " MATCHED_TOKEN " + "y".repeat(400);
+    const truncated = truncateAroundMatch(text, 60, "matched_token");
+    const segments = buildHighlightSegments(truncated, "matched_token");
+    const matchSegments = segments.filter((s) => s.type === "match");
+    expect(matchSegments).toHaveLength(1);
+    expect(matchSegments[0].value).toBe("MATCHED_TOKEN");
   });
 });
