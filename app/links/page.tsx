@@ -67,7 +67,7 @@ export default function LinksPage() {
           </div>
         </div>
 
-        <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
           {rows.map((row, index) => {
             const attachments = asAttachments(row.slackAttachments);
             const attachment = attachments[0];
@@ -82,7 +82,10 @@ export default function LinksPage() {
             return (
               <article
                 key={row.id}
-                className="group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]"
+                className={[
+                  "group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
+                  imageUrl ? "" : "border-l-2 border-l-indigo-200",
+                ].join(" ")}
               >
                 {imageUrl ? (
                   <a
@@ -101,23 +104,24 @@ export default function LinksPage() {
                       {serviceName}
                     </div>
                   </a>
-                ) : (
-                  <div className="relative flex aspect-[40/21] items-end bg-[radial-gradient(circle_at_top_right,_rgba(99,102,241,0.1),_transparent_40%),linear-gradient(180deg,_rgba(248,250,252,1),_rgba(241,245,249,1))] p-5">
-                    <div className="absolute left-4 top-4 inline-flex rounded-full bg-black/50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-white backdrop-blur">
-                      {serviceName}
-                    </div>
-                  </div>
-                )}
+                ) : null}
 
                 <div className="space-y-4 p-5">
-                  <div className="flex items-center justify-between gap-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                    <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
-                      #{row.id}
-                    </span>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 font-semibold text-slate-600">
+                        #{row.id}
+                      </span>
+                      {!imageUrl && (
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 font-semibold tracking-[0.16em] text-indigo-600">
+                          {serviceName}
+                        </span>
+                      )}
+                    </div>
                     <span>{new Date(row.createdAt).toLocaleDateString("ja-JP")}</span>
                   </div>
 
-                  <div className="min-h-[232px] space-y-2">
+                  <div className="space-y-2 md:min-h-[232px]">
                     <h2 className="text-lg font-semibold leading-7 text-slate-900">
                       <a
                         href={targetUrl}
