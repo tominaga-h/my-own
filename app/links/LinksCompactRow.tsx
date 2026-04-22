@@ -34,15 +34,25 @@ export default function LinksCompactRow({ row, normalizedQuery }: Props) {
         )}
       </div>
 
-      <a
-        href={row.targetUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="flex-1 truncate text-sm text-slate-800 transition hover:text-indigo-600"
-        title={row.title}
-      >
-        {highlightMatches(row.title, normalizedQuery)}
-      </a>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <a
+          href={row.targetUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="truncate text-sm text-slate-800 transition hover:text-indigo-600"
+          title={row.title}
+        >
+          {highlightMatches(row.title, normalizedQuery)}
+        </a>
+        {row.description ? (
+          <span
+            className="truncate text-xs text-slate-400"
+            title={row.description}
+          >
+            {highlightMatches(row.description, normalizedQuery)}
+          </span>
+        ) : null}
+      </div>
 
       {hostname ? (
         <span
