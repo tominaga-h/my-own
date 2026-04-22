@@ -34,6 +34,14 @@ export type ProjectListResponse = {
   serverTime: string;
 };
 
+export type ProjectResponse = {
+  project: ProjectDto;
+  serverTime: string;
+};
+
+export type ProjectCreateBody = { name: string };
+export type ProjectPatchBody = { name: string };
+
 export type TaskCreateBody = {
   title: string;
   status: TaskStatus;
@@ -168,6 +176,49 @@ export function mtsPatchTask(
 
 export function mtsListProjects(): Promise<ProjectListResponse> {
   return mtsFetch<ProjectListResponse>(`/api/projects`);
+}
+
+export function mtsCreateProject(
+  body: ProjectCreateBody,
+): Promise<ProjectResponse> {
+  return mtsFetch<ProjectResponse>(`/api/projects`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function mtsUpdateProject(
+  id: number,
+  body: ProjectPatchBody,
+): Promise<ProjectResponse> {
+  return mtsFetch<ProjectResponse>(`/api/projects/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+/**
+ * 204 No Content を想定するため mtsFetch は使わず直接 fetch を呼ぶ。
+ * Authorization / cache:no-store / ngrok https の調整は mtsFetch と揃える。
+ */
+export async function mtsDeleteProject(id: number): Promise<void> {
+  const { baseUrl, apiKey } = mtsConfig();
+  const resp = await fetch(`${baseUrl}/api/projects/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    cache: "no-store",
+  });
+  if (!resp.ok) {
+    let errorMsg = `HTTP ${resp.status}`;
+    try {
+      const body = await resp.json();
+      if (typeof body?.error === "string") errorMsg = body.error;
+    } catch {
+      /* JSON でないレスポンスは status 文字列のまま */
+    }
+    const err: MtsError = { status: resp.status, error: errorMsg };
+    throw err;
+  }
 }
 
 // ---- Validation helpers (for Route Handlers) ----
@@ -336,4 +387,33 @@ export function pickTaskPatch(input: unknown): TaskPatchBody {
     out.reminds = body.reminds as string[];
   }
   return out;
+}
+
+const PROJECT_KEYS = new Set(["name"]);
+
+/**
+ * Project の create/patch 共通バリデータ。
+ * trim 後に 1..200 文字の name を返す。
+ */
+export function pickProjectBody(input: unknown): { name: string } {
+  const body = ensureObject(input);
+  for (const key of Object.keys(body)) {
+    if (!PROJECT_KEYS.has(key)) {
+      throw new MtsValidationError(`unknown field: ${key}`);
+    }
+  }
+  if (!("name" in body)) {
+    throw new MtsValidationError("name is required");
+  }
+  if (typeof body.name !== "string") {
+    throw new MtsValidationError("name must be a string");
+  }
+  const trimmed = body.name.trim();
+  if (trimmed.length === 0) {
+    throw new MtsValidationError("name must not be empty");
+  }
+  if (trimmed.length > 200) {
+    throw new MtsValidationError("name must be 1..200 chars");
+  }
+  return { name: trimmed };
 }

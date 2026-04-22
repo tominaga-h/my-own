@@ -10,8 +10,11 @@ import {
 
 import {
   isMtsError,
+  mtsCreateProject,
   mtsCreateTask,
+  mtsDeleteProject,
   mtsListTasks,
+  mtsUpdateProject,
   resetMtsConfigForTests,
   type TaskCreateBody,
 } from "../../lib/my-task-sync";
@@ -137,5 +140,121 @@ describe("mtsCreateTask", () => {
     expect((init as RequestInit).body).toBe(JSON.stringify(body));
     const headers = new Headers((init as RequestInit).headers);
     expect(headers.get("Content-Type")).toBe("application/json");
+  });
+});
+
+describe("mtsCreateProject", () => {
+  it("POSTs /api/projects with JSON body and Bearer", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(201, {
+        project: { id: 1, name: "p1" },
+        serverTime: "2026-04-19T00:00:00Z",
+      }),
+    );
+
+    const data = await mtsCreateProject({ name: "p1" });
+
+    expect(data).toEqual({
+      project: { id: 1, name: "p1" },
+      serverTime: "2026-04-19T00:00:00Z",
+    });
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("http://upstream.test/api/projects");
+    expect((init as RequestInit).method).toBe("POST");
+    expect((init as RequestInit).body).toBe(JSON.stringify({ name: "p1" }));
+    const headers = new Headers((init as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe("Bearer test-key");
+    expect(headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("throws MtsError on 409 conflict", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(409, { error: "project name already exists" }),
+    );
+
+    await expect(mtsCreateProject({ name: "p1" })).rejects.toMatchObject({
+      status: 409,
+      error: "project name already exists",
+    });
+  });
+});
+
+describe("mtsUpdateProject", () => {
+  it("PATCHes /api/projects/:id with JSON body", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(200, {
+        project: { id: 7, name: "renamed" },
+        serverTime: "2026-04-19T00:00:00Z",
+      }),
+    );
+
+    const data = await mtsUpdateProject(7, { name: "renamed" });
+
+    expect(data.project.name).toBe("renamed");
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("http://upstream.test/api/projects/7");
+    expect((init as RequestInit).method).toBe("PATCH");
+    expect((init as RequestInit).body).toBe(JSON.stringify({ name: "renamed" }));
+    const headers = new Headers((init as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe("Bearer test-key");
+    expect(headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("throws MtsError on 409", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(409, { error: "project name already exists" }),
+    );
+
+    const err = await mtsUpdateProject(7, { name: "dup" }).catch((e) => e);
+    expect(isMtsError(err)).toBe(true);
+    expect(err).toMatchObject({ status: 409, error: "project name already exists" });
+  });
+
+  it("throws MtsError on 404", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(404, { error: "project not found" }),
+    );
+
+    await expect(mtsUpdateProject(999, { name: "x" })).rejects.toMatchObject({
+      status: 404,
+      error: "project not found",
+    });
+  });
+});
+
+describe("mtsDeleteProject", () => {
+  it("DELETEs /api/projects/:id with no body and resolves on 204", async () => {
+    fetchSpy.mockResolvedValueOnce(new Response(null, { status: 204 }));
+
+    await expect(mtsDeleteProject(3)).resolves.toBeUndefined();
+
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe("http://upstream.test/api/projects/3");
+    expect((init as RequestInit).method).toBe("DELETE");
+    expect((init as RequestInit).body).toBeUndefined();
+    expect((init as RequestInit).cache).toBe("no-store");
+    const headers = new Headers((init as RequestInit).headers);
+    expect(headers.get("Authorization")).toBe("Bearer test-key");
+  });
+
+  it("throws MtsError on 409 with parsed upstream message", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(409, { error: "project has 3 tasks" }),
+    );
+
+    const err = await mtsDeleteProject(3).catch((e) => e);
+    expect(isMtsError(err)).toBe(true);
+    expect(err).toMatchObject({ status: 409, error: "project has 3 tasks" });
+  });
+
+  it("throws MtsError on 404", async () => {
+    fetchSpy.mockResolvedValueOnce(
+      jsonResponse(404, { error: "project not found" }),
+    );
+
+    await expect(mtsDeleteProject(999)).rejects.toMatchObject({
+      status: 404,
+      error: "project not found",
+    });
   });
 });
