@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveDisplayFields, type LinkRow } from "./display";
+import { deriveDisplayFields, type LinkRow } from "../../lib/links/display";
 
 function makeRow(overrides: Partial<LinkRow> = {}): LinkRow {
   return {

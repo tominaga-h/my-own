@@ -8,7 +8,7 @@ import {
   type MockInstance,
 } from "vitest";
 
-import { runAllSync } from "../sync";
+import { runAllSync } from "../../lib/sync";
 
 let fetchSpy: MockInstance;
 

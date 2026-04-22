@@ -5,7 +5,7 @@ import {
   filterLinksByQuery,
   truncateAroundMatch,
   type LinkSearchRecord,
-} from "./search";
+} from "../../lib/links/search";
 
 const records: LinkSearchRecord[] = [
   {

@@ -8,9 +8,9 @@ import {
   type MockInstance,
 } from "vitest";
 
-import { GET, POST } from "../route";
-import { GET as GET_ONE, PATCH as PATCH_ONE } from "../[taskNumber]/route";
-import { resetMtsConfigForTests } from "../../../../lib/my-task-sync";
+import { GET, POST } from "../../../app/api/tasks/route";
+import { GET as GET_ONE, PATCH as PATCH_ONE } from "../../../app/api/tasks/[taskNumber]/route";
+import { resetMtsConfigForTests } from "../../../lib/my-task-sync";
 
 const API_KEY = "route-test-key";
 const APP_USER = "00000000-0000-0000-0000-000000000000";

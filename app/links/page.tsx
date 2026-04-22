@@ -4,14 +4,19 @@
 import { useDeferredValue, useMemo, useState } from "react";
 import useSWR from "swr";
 
-import { deriveDisplayFields, type DisplayFields, type LinkRow } from "./display";
-import { highlightMatches } from "./highlight";
-import LinksSkeleton from "./LinksSkeleton";
+import {
+  deriveDisplayFields,
+  type DisplayFields,
+  type LinkRow,
+} from "../../lib/links/display";
+import { highlightMatches } from "../../lib/links/highlight";
 import {
   filterLinksByQuery,
   truncateAroundMatch,
   type LinkSearchRecord,
-} from "./search";
+} from "../../lib/links/search";
+
+import LinksSkeleton from "./LinksSkeleton";
 
 type LinksResponse = {
   links: LinkRow[];

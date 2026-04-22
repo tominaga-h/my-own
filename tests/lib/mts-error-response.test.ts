@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { mapMtsErrorResponse } from "../mts-error-response";
-import { MtsValidationError, type MtsError } from "../my-task-sync";
+import { mapMtsErrorResponse } from "../../lib/mts-error-response";
+import { MtsValidationError, type MtsError } from "../../lib/my-task-sync";
 
 async function readJson(resp: Response) {
   return (await resp.json()) as { error: string };

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseTaskNumber } from "../parse-task-number";
+import { parseTaskNumber } from "../../lib/parse-task-number";
 
 describe("parseTaskNumber", () => {
   it.each([

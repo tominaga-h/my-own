@@ -6,7 +6,7 @@ import {
   MtsValidationError,
   pickTaskCreate,
   pickTaskPatch,
-} from "../my-task-sync";
+} from "../../lib/my-task-sync";
 
 describe("isTaskStatus", () => {
   it.each(["open", "done", "closed"])("accepts %s", (s) => {

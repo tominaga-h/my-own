@@ -14,7 +14,7 @@ import {
   mtsListTasks,
   resetMtsConfigForTests,
   type TaskCreateBody,
-} from "../my-task-sync";
+} from "../../lib/my-task-sync";
 
 let fetchSpy: MockInstance;
 
