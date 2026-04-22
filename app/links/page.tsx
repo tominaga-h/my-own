@@ -15,6 +15,7 @@ import {
   truncateAroundMatch,
   type LinkSearchRecord,
 } from "../../lib/links/search";
+import { shuffle } from "../../lib/links/shuffle";
 
 import LinksSkeleton from "./LinksSkeleton";
 
@@ -34,13 +35,14 @@ export default function LinksPage() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim();
+  const [randomOrderIds, setRandomOrderIds] = useState<number[] | null>(null);
 
   const displayRows = useMemo<DisplayFields[]>(
     () => rows.map(deriveDisplayFields),
     [rows],
   );
 
-  const filteredRows = useMemo<DisplayFields[]>(() => {
+  const searchedRows = useMemo<DisplayFields[]>(() => {
     if (!normalizedQuery) return displayRows;
     const searchRecords: LinkSearchRecord[] = displayRows.map((d) => ({
       id: d.id,
@@ -54,6 +56,32 @@ export default function LinksPage() {
     );
     return displayRows.filter((d) => matchedIds.has(d.id));
   }, [displayRows, normalizedQuery]);
+
+  const filteredRows = useMemo<DisplayFields[]>(() => {
+    // 検索中はランダム並びを無視して API 順を維持する。
+    if (normalizedQuery) return searchedRows;
+    if (randomOrderIds === null) return searchedRows;
+    const byId = new Map(searchedRows.map((d) => [d.id, d]));
+    const ordered: DisplayFields[] = [];
+    const seen = new Set<number>();
+    for (const id of randomOrderIds) {
+      const row = byId.get(id);
+      if (row) {
+        ordered.push(row);
+        seen.add(id);
+      }
+    }
+    // randomOrderIds 記録後に新着で追加された id は末尾に差し込み、欠落を防ぐ。
+    for (const row of searchedRows) {
+      if (!seen.has(row.id)) ordered.push(row);
+    }
+    return ordered;
+  }, [searchedRows, normalizedQuery, randomOrderIds]);
+
+  const handleShuffle = () => {
+    const ids = searchedRows.map((d) => d.id);
+    setRandomOrderIds(shuffle(ids));
+  };
 
   if (showSkeleton) {
     return <LinksSkeleton />;
@@ -88,6 +116,14 @@ export default function LinksPage() {
               placeholder="タイトル / URL / description を検索"
               className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 sm:w-80"
             />
+            <button
+              type="button"
+              onClick={handleShuffle}
+              aria-label="リンクをランダムに並べ替え"
+              className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+            >
+              ランダム
+            </button>
             {normalizedQuery ? (
               <span className="whitespace-nowrap text-xs text-slate-400">
                 {filteredRows.length} 件
