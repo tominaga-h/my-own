@@ -8,6 +8,18 @@ export default function LinksSkeleton({ count = 6 }: { count?: number }) {
             <div className="mt-2 h-4 w-56 rounded bg-slate-200/70" />
           </div>
         </div>
+        <div className="rounded-2xl bg-white/70 px-5 py-4 shadow-sm backdrop-blur">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1.5">
+              <div className="h-7 w-24 rounded-[10px] bg-slate-200" />
+              <div className="h-7 w-32 rounded-[10px] bg-slate-200/70" />
+            </div>
+            <div className="h-6 w-px bg-slate-200/80" />
+            <div className="h-9 min-w-[240px] flex-1 rounded-xl bg-slate-200/70" />
+            <div className="h-9 w-24 rounded-full bg-slate-200/70" />
+            <div className="h-9 w-32 rounded-full bg-slate-200/70" />
+          </div>
+        </div>
         <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {Array.from({ length: count }).map((_, i) => (
             <article
