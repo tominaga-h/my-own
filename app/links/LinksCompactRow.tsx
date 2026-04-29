@@ -97,48 +97,31 @@ export default function LinksCompactRow({
         </svg>
       </a>
 
-      {isRead ? (
-        <span
-          aria-label="既読"
-          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700"
+      <button
+        type="button"
+        onClick={() => onToggleRead(row.id, isRead)}
+        className={[
+          "shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition focus:outline-none focus:ring-2",
+          isRead
+            ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 focus:ring-emerald-200"
+            : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:ring-indigo-200",
+        ].join(" ")}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={isRead ? 3 : 2}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="h-3 w-3"
+          aria-hidden="true"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3 w-3"
-            aria-hidden="true"
-          >
-            <path d="M5 12l5 5L20 7" />
-          </svg>
-          既読
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => onToggleRead(row.id, isRead)}
-          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="h-3 w-3"
-            aria-hidden="true"
-          >
-            <path d="M5 12l5 5L20 7" />
-          </svg>
-          既読にする
-        </button>
-      )}
+          {isRead ? <path d="M3 6h13M3 12h9M3 18h13" /> : <path d="M5 12l5 5L20 7" />}
+        </svg>
+        {isRead ? "未読にする" : "既読にする"}
+      </button>
     </li>
   );
 }
