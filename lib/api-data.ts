@@ -139,3 +139,23 @@ export async function listLinks(userId: string, limit = 100) {
     lastSyncAt: syncRow?.updatedAt ?? null,
   };
 }
+
+export async function markLinkRead(userId: string, id: number) {
+  const [row] = await db
+    .update(links)
+    .set({ readAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(links.id, id), eq(links.userId, userId)))
+    .returning();
+
+  return row ?? null;
+}
+
+export async function markLinkUnread(userId: string, id: number) {
+  const [row] = await db
+    .update(links)
+    .set({ readAt: null, updatedAt: new Date() })
+    .where(and(eq(links.id, id), eq(links.userId, userId)))
+    .returning();
+
+  return row ?? null;
+}
