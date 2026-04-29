@@ -101,7 +101,7 @@ export default function LinksCompactRow({
         type="button"
         onClick={() => onToggleRead(row.id, isRead)}
         className={[
-          "shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium transition focus:outline-none focus:ring-2",
+          "shrink-0 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition focus:outline-none focus:ring-2",
           isRead
             ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 hover:bg-emerald-100 focus:ring-emerald-200"
             : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:ring-indigo-200",
