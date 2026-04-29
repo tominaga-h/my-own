@@ -10,6 +10,7 @@ import {
   type LinkRow,
 } from "../../lib/links/display";
 import { highlightMatches } from "../../lib/links/highlight";
+import { partitionByRead } from "../../lib/links/partition";
 import {
   filterLinksByQuery,
   truncateAroundMatch,
@@ -24,8 +25,8 @@ import {
 } from "../../lib/links/viewMode";
 
 import LinksCompactRow from "./LinksCompactRow";
+import LinksControlsBar, { type LinksView } from "./LinksControlsBar";
 import LinksSkeleton from "./LinksSkeleton";
-import LinksViewToggle from "./LinksViewToggle";
 
 type LinksResponse = {
   links: LinkRow[];
@@ -35,7 +36,9 @@ type LinksResponse = {
 const DESCRIPTION_MAX = 180;
 
 export default function LinksPage() {
-  const { data, isLoading } = useSWR<LinksResponse>("/api/links?limit=100");
+  const { data, isLoading, mutate } = useSWR<LinksResponse>(
+    "/api/links?limit=100",
+  );
   const rows = useMemo(() => data?.links ?? [], [data?.links]);
   const lastSyncedAt = data?.lastSyncAt ?? null;
   const showSkeleton = isLoading && !data;
@@ -45,6 +48,7 @@ export default function LinksPage() {
   const normalizedQuery = deferredQuery.trim();
   const [randomOrderIds, setRandomOrderIds] = useState<number[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(DEFAULT_VIEW_MODE);
+  const [view, setView] = useState<LinksView>("unread");
 
   // マウント後に localStorage から復元。SSR と初期レンダリングは固定の "card" を使用して
   // hydration mismatch を避ける。
@@ -71,9 +75,16 @@ export default function LinksPage() {
     [rows],
   );
 
+  const { unread: unreadRows, archived: archivedRows } = useMemo(
+    () => partitionByRead(displayRows),
+    [displayRows],
+  );
+
+  const visibleRows = view === "archived" ? archivedRows : unreadRows;
+
   const searchedRows = useMemo<DisplayFields[]>(() => {
-    if (!normalizedQuery) return displayRows;
-    const searchRecords: LinkSearchRecord[] = displayRows.map((d) => ({
+    if (!normalizedQuery) return visibleRows;
+    const searchRecords: LinkSearchRecord[] = visibleRows.map((d) => ({
       id: d.id,
       title: d.title,
       url: d.rawUrl,
@@ -83,8 +94,8 @@ export default function LinksPage() {
     const matchedIds = new Set(
       filterLinksByQuery(searchRecords, normalizedQuery).map((r) => r.id),
     );
-    return displayRows.filter((d) => matchedIds.has(d.id));
-  }, [displayRows, normalizedQuery]);
+    return visibleRows.filter((d) => matchedIds.has(d.id));
+  }, [visibleRows, normalizedQuery]);
 
   const filteredRows = useMemo<DisplayFields[]>(() => {
     // 検索中はランダム並びを無視して API 順を維持する。
@@ -112,9 +123,51 @@ export default function LinksPage() {
     setRandomOrderIds(shuffle(ids));
   };
 
+  const handleToggleRead = async (id: number, currentlyRead: boolean) => {
+    const nextReadAt = currentlyRead ? null : new Date().toISOString();
+    const optimistic: LinksResponse | undefined = data
+      ? {
+          ...data,
+          links: data.links.map((l) =>
+            l.id === id ? { ...l, readAt: nextReadAt } : l,
+          ),
+        }
+      : data;
+
+    try {
+      await mutate(
+        async () => {
+          const res = await fetch(`/api/links/${id}/read`, {
+            method: currentlyRead ? "DELETE" : "POST",
+          });
+          if (!res.ok) {
+            throw new Error(`failed to toggle read state: ${res.status}`);
+          }
+          // 成功時は最新を再取得して整合性を担保する。
+          const refreshed = await fetch("/api/links?limit=100");
+          if (!refreshed.ok) {
+            throw new Error(`failed to refetch links: ${refreshed.status}`);
+          }
+          return (await refreshed.json()) as LinksResponse;
+        },
+        {
+          optimisticData: optimistic,
+          rollbackOnError: true,
+          revalidate: false,
+        },
+      );
+    } catch (error) {
+      // 失敗時は SWR が自動でロールバックする。
+      console.error("[links] toggle read failed", error);
+    }
+  };
+
   if (showSkeleton) {
     return <LinksSkeleton />;
   }
+
+  const hasAnyRows = rows.length > 0;
+  const isArchivedView = view === "archived";
 
   return (
     <main className="min-h-screen px-3 py-3 text-slate-800 sm:px-4 sm:py-4 lg:px-5">
@@ -133,37 +186,24 @@ export default function LinksPage() {
               </p>
             )}
           </div>
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <label htmlFor="links-search" className="sr-only">
-              リンクを検索
-            </label>
-            <input
-              id="links-search"
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="タイトル / URL / description を検索"
-              className="w-full rounded-full border border-slate-200 bg-white px-4 py-2 text-sm text-slate-700 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200 sm:w-80"
-            />
-            <button
-              type="button"
-              onClick={handleShuffle}
-              aria-label="リンクをランダムに並べ替え"
-              className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-            >
-              ランダム
-            </button>
-            <LinksViewToggle
-              value={viewMode}
-              onChange={handleViewModeChange}
-            />
-            {normalizedQuery ? (
-              <span className="whitespace-nowrap text-xs text-slate-400">
-                {filteredRows.length} 件
-              </span>
-            ) : null}
-          </div>
+          {normalizedQuery ? (
+            <span className="whitespace-nowrap text-xs text-slate-400">
+              {filteredRows.length} 件
+            </span>
+          ) : null}
         </div>
+
+        <LinksControlsBar
+          view={view}
+          onViewChange={setView}
+          unreadCount={unreadRows.length}
+          archivedCount={archivedRows.length}
+          query={query}
+          onQueryChange={setQuery}
+          onShuffle={handleShuffle}
+          viewMode={viewMode}
+          onViewModeChange={handleViewModeChange}
+        />
 
         {viewMode === "card" ? (
           <section className="grid gap-3 md:grid-cols-2 md:gap-5 xl:grid-cols-3">
@@ -176,10 +216,50 @@ export default function LinksPage() {
                 <article
                   key={d.id}
                   className={[
-                    "group overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
+                    "group relative overflow-hidden rounded-xl border border-slate-200 bg-white transition duration-200 hover:-translate-y-1 hover:shadow-[0_8px_24px_rgba(99,102,241,0.1)]",
                     d.imageUrl ? "" : "border-l-2 border-l-indigo-200",
                   ].join(" ")}
                 >
+                  <button
+                    type="button"
+                    onClick={() => handleToggleRead(d.id, d.isRead)}
+                    aria-label={d.isRead ? "未読に戻す" : "読んだ"}
+                    aria-pressed={d.isRead}
+                    className={[
+                      "absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition focus:outline-none focus:ring-2 focus:ring-indigo-200",
+                      d.isRead
+                        ? "border-emerald-300 bg-emerald-50/90 text-emerald-600 hover:bg-emerald-100"
+                        : "border-slate-200 bg-white/80 text-slate-400 hover:border-indigo-300 hover:text-indigo-500",
+                    ].join(" ")}
+                  >
+                    {d.isRead ? (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path d="M5 12l5 5L20 7" />
+                      </svg>
+                    ) : (
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="9" />
+                      </svg>
+                    )}
+                  </button>
                   {d.imageUrl ? (
                     <a
                       className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
@@ -251,13 +331,17 @@ export default function LinksPage() {
               );
             })}
 
-            {data && rows.length === 0 ? (
+            {data && !hasAnyRows ? (
               <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
                 まだリンクがありません。Slack 同期を先に走らせてください。
               </div>
-            ) : data && rows.length > 0 && filteredRows.length === 0 ? (
+            ) : data && filteredRows.length === 0 ? (
               <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm md:col-span-2 xl:col-span-3">
-                「{normalizedQuery}」に一致するリンクはありません。
+                {normalizedQuery
+                  ? `「${normalizedQuery}」に一致するリンクはありません。`
+                  : isArchivedView
+                    ? "アーカイブはまだありません。"
+                    : "未読のリンクはありません。"}
               </div>
             ) : null}
           </section>
@@ -270,16 +354,22 @@ export default function LinksPage() {
                     key={d.id}
                     row={d}
                     normalizedQuery={normalizedQuery}
+                    isRead={d.isRead}
+                    onToggleRead={handleToggleRead}
                   />
                 ))}
               </ul>
-            ) : data && rows.length === 0 ? (
+            ) : data && !hasAnyRows ? (
               <div className="rounded-[28px] border border-dashed border-indigo-200 bg-white/80 p-8 text-slate-500 shadow-sm">
                 まだリンクがありません。Slack 同期を先に走らせてください。
               </div>
-            ) : data && rows.length > 0 ? (
+            ) : data ? (
               <div className="rounded-[28px] border border-dashed border-slate-200 bg-white/80 p-8 text-slate-500 shadow-sm">
-                「{normalizedQuery}」に一致するリンクはありません。
+                {normalizedQuery
+                  ? `「${normalizedQuery}」に一致するリンクはありません。`
+                  : isArchivedView
+                    ? "アーカイブはまだありません。"
+                    : "未読のリンクはありません。"}
               </div>
             ) : null}
           </section>
