@@ -4,6 +4,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 
+import { apiFetchJson } from "../../lib/api-client";
+import { useApiKey } from "../providers";
 import {
   deriveDisplayFields,
   type DisplayFields,
@@ -36,6 +38,7 @@ type LinksResponse = {
 const DESCRIPTION_MAX = 180;
 
 export default function LinksPage() {
+  const apiKey = useApiKey();
   const { data, isLoading, mutate } = useSWR<LinksResponse>(
     "/api/links?limit=100",
   );
@@ -137,18 +140,14 @@ export default function LinksPage() {
     try {
       await mutate(
         async () => {
-          const res = await fetch(`/api/links/${id}/read`, {
+          await apiFetchJson(apiKey, `/api/links/${id}/read`, {
             method: currentlyRead ? "DELETE" : "POST",
           });
-          if (!res.ok) {
-            throw new Error(`failed to toggle read state: ${res.status}`);
-          }
           // 成功時は最新を再取得して整合性を担保する。
-          const refreshed = await fetch("/api/links?limit=100");
-          if (!refreshed.ok) {
-            throw new Error(`failed to refetch links: ${refreshed.status}`);
-          }
-          return (await refreshed.json()) as LinksResponse;
+          return await apiFetchJson<LinksResponse>(
+            apiKey,
+            "/api/links?limit=100",
+          );
         },
         {
           optimisticData: optimistic,
