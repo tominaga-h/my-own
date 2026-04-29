@@ -97,19 +97,11 @@ export default function LinksCompactRow({
         </svg>
       </a>
 
-      <button
-        type="button"
-        onClick={() => onToggleRead(row.id, isRead)}
-        aria-label={isRead ? "未読に戻す" : "読んだ"}
-        aria-pressed={isRead}
-        className={[
-          "shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-200",
-          isRead
-            ? "border-emerald-300 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
-            : "border-slate-200 bg-white text-slate-300 hover:border-indigo-300 hover:text-indigo-500",
-        ].join(" ")}
-      >
-        {isRead ? (
+      {isRead ? (
+        <span
+          aria-label="既読"
+          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-700"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
@@ -118,25 +110,35 @@ export default function LinksCompactRow({
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
-            className="h-3.5 w-3.5"
+            className="h-3 w-3"
             aria-hidden="true"
           >
             <path d="M5 12l5 5L20 7" />
           </svg>
-        ) : (
+          既読
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => onToggleRead(row.id, isRead)}
+          className="shrink-0 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-[11px] font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            className="h-3.5 w-3.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3 w-3"
             aria-hidden="true"
           >
-            <circle cx="12" cy="12" r="9" />
+            <path d="M5 12l5 5L20 7" />
           </svg>
-        )}
-      </button>
+          既読にする
+        </button>
+      )}
     </li>
   );
 }

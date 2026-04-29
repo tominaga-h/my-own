@@ -219,19 +219,11 @@ export default function LinksPage() {
                     d.imageUrl ? "" : "border-l-2 border-l-indigo-200",
                   ].join(" ")}
                 >
-                  <button
-                    type="button"
-                    onClick={() => handleToggleRead(d.id, d.isRead)}
-                    aria-label={d.isRead ? "未読に戻す" : "読んだ"}
-                    aria-pressed={d.isRead}
-                    className={[
-                      "absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full border backdrop-blur transition focus:outline-none focus:ring-2 focus:ring-indigo-200",
-                      d.isRead
-                        ? "border-emerald-300 bg-emerald-50/90 text-emerald-600 hover:bg-emerald-100"
-                        : "border-slate-200 bg-white/80 text-slate-400 hover:border-indigo-300 hover:text-indigo-500",
-                    ].join(" ")}
-                  >
-                    {d.isRead ? (
+                  {d.isRead ? (
+                    <span
+                      aria-label="既読"
+                      className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50/90 px-2.5 py-1 text-xs font-medium text-emerald-700 backdrop-blur"
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
@@ -240,25 +232,35 @@ export default function LinksPage() {
                         strokeWidth="3"
                         strokeLinecap="round"
                         strokeLinejoin="round"
-                        className="h-4 w-4"
+                        className="h-3.5 w-3.5"
                         aria-hidden="true"
                       >
                         <path d="M5 12l5 5L20 7" />
                       </svg>
-                    ) : (
+                      既読
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRead(d.id, d.isRead)}
+                      className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white/90 px-2.5 py-1 text-xs font-medium text-slate-600 backdrop-blur transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
                         strokeWidth="2"
-                        className="h-4 w-4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-3.5 w-3.5"
                         aria-hidden="true"
                       >
-                        <circle cx="12" cy="12" r="9" />
+                        <path d="M5 12l5 5L20 7" />
                       </svg>
-                    )}
-                  </button>
+                      既読にする
+                    </button>
+                  )}
                   {d.imageUrl ? (
                     <a
                       className="relative block aspect-[40/21] overflow-hidden bg-slate-100"
