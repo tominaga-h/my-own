@@ -22,7 +22,7 @@ type Props = {
 
 const TABS: Array<{ key: LinksView; label: string }> = [
   { key: "unread", label: "未読" },
-  { key: "archived", label: "アーカイブ済み" },
+  { key: "archived", label: "アーカイブ" },
 ];
 
 const SORT_OPTIONS: Array<{ key: LinksSortOrder; label: string }> = [

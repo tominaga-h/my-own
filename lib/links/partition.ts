@@ -1,5 +1,5 @@
 /**
- * isRead フラグで配列を未読/アーカイブ済みに振り分けるユーティリティ。
+ * isRead フラグで配列を未読/アーカイブに振り分けるユーティリティ。
  * 元の並び順は保持する。
  */
 export function partitionByRead<T extends { isRead: boolean }>(
