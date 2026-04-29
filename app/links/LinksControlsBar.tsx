@@ -1,9 +1,11 @@
 "use client";
 
+import { CHEVRON_DATA_URL } from "../tasks/lib/chevron";
 import LinksViewToggle from "./LinksViewToggle";
 import type { ViewMode } from "../../lib/links/viewMode";
 
 export type LinksView = "unread" | "archived";
+export type LinksSortOrder = "newest" | "oldest" | "random";
 
 type Props = {
   view: LinksView;
@@ -12,7 +14,8 @@ type Props = {
   archivedCount: number;
   query: string;
   onQueryChange: (v: string) => void;
-  onShuffle: () => void;
+  sortOrder: LinksSortOrder;
+  onSortOrderChange: (v: LinksSortOrder) => void;
   viewMode: ViewMode;
   onViewModeChange: (v: ViewMode) => void;
 };
@@ -22,6 +25,12 @@ const TABS: Array<{ key: LinksView; label: string }> = [
   { key: "archived", label: "アーカイブ済み" },
 ];
 
+const SORT_OPTIONS: Array<{ key: LinksSortOrder; label: string }> = [
+  { key: "newest", label: "新しい順" },
+  { key: "oldest", label: "古い順" },
+  { key: "random", label: "ランダム" },
+];
+
 export default function LinksControlsBar({
   view,
   onViewChange,
@@ -29,7 +38,8 @@ export default function LinksControlsBar({
   archivedCount,
   query,
   onQueryChange,
-  onShuffle,
+  sortOrder,
+  onSortOrderChange,
   viewMode,
   onViewModeChange,
 }: Props) {
@@ -156,15 +166,64 @@ export default function LinksControlsBar({
           )}
         </div>
 
-        {/* Random button */}
-        <button
-          type="button"
-          onClick={onShuffle}
-          aria-label="リンクをランダムに並べ替え"
-          className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:border-indigo-300 hover:text-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+        {/* Sort order dropdown */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            borderRadius: 12,
+            background: "rgba(255,255,255,.8)",
+            padding: "6px 10px 6px 12px",
+            boxShadow: "inset 0 0 0 1px rgba(230,232,234,.6)",
+          }}
         >
-          ランダム
-        </button>
+          <svg
+            width={13}
+            height={13}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{ color: "rgba(70,69,85,.45)", flexShrink: 0 }}
+            aria-hidden="true"
+          >
+            <path d="M3 6h13M3 12h9M3 18h6" />
+            <path d="M17 14l4 4 4-4" />
+          </svg>
+          <select
+            value={sortOrder}
+            onChange={(e) =>
+              onSortOrderChange(e.target.value as LinksSortOrder)
+            }
+            aria-label="リンクの並び順"
+            style={{
+              appearance: "none",
+              WebkitAppearance: "none",
+              MozAppearance: "none",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              fontSize: 13,
+              fontWeight: 500,
+              color: "#464555",
+              fontFamily: "inherit",
+              cursor: "pointer",
+              paddingRight: 18,
+              backgroundImage: CHEVRON_DATA_URL,
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right 2px center",
+            }}
+          >
+            {SORT_OPTIONS.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* View mode toggle */}
         <LinksViewToggle value={viewMode} onChange={onViewModeChange} />

@@ -27,7 +27,10 @@ import {
 } from "../../lib/links/viewMode";
 
 import LinksCompactRow from "./LinksCompactRow";
-import LinksControlsBar, { type LinksView } from "./LinksControlsBar";
+import LinksControlsBar, {
+  type LinksSortOrder,
+  type LinksView,
+} from "./LinksControlsBar";
 import LinksSkeleton from "./LinksSkeleton";
 
 type LinksResponse = {
@@ -49,6 +52,7 @@ export default function LinksPage() {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const normalizedQuery = deferredQuery.trim();
+  const [sortOrder, setSortOrder] = useState<LinksSortOrder>("newest");
   const [randomOrderIds, setRandomOrderIds] = useState<number[] | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(DEFAULT_VIEW_MODE);
   const [view, setView] = useState<LinksView>("unread");
@@ -102,8 +106,11 @@ export default function LinksPage() {
   }, [displayRows, visibleRows, normalizedQuery]);
 
   const filteredRows = useMemo<DisplayFields[]>(() => {
-    // 検索中はランダム並びを無視して API 順を維持する。
+    // 検索中はランダム/ソートを無視して API 順を維持する。
     if (normalizedQuery) return searchedRows;
+    if (sortOrder === "newest") return searchedRows;
+    if (sortOrder === "oldest") return [...searchedRows].reverse();
+    // random
     if (randomOrderIds === null) return searchedRows;
     const byId = new Map(searchedRows.map((d) => [d.id, d]));
     const ordered: DisplayFields[] = [];
@@ -120,11 +127,16 @@ export default function LinksPage() {
       if (!seen.has(row.id)) ordered.push(row);
     }
     return ordered;
-  }, [searchedRows, normalizedQuery, randomOrderIds]);
+  }, [searchedRows, normalizedQuery, sortOrder, randomOrderIds]);
 
-  const handleShuffle = () => {
-    const ids = searchedRows.map((d) => d.id);
-    setRandomOrderIds(shuffle(ids));
+  const handleSortOrderChange = (next: LinksSortOrder) => {
+    setSortOrder(next);
+    if (next === "random") {
+      // ランダム選択時は現在の検索結果から新しい並び順を生成。
+      setRandomOrderIds(shuffle(searchedRows.map((d) => d.id)));
+    } else {
+      setRandomOrderIds(null);
+    }
   };
 
   const handleToggleRead = async (id: number, currentlyRead: boolean) => {
@@ -198,9 +210,10 @@ export default function LinksPage() {
           onViewChange={setView}
           unreadCount={unreadRows.length}
           archivedCount={archivedRows.length}
+          sortOrder={sortOrder}
+          onSortOrderChange={handleSortOrderChange}
           query={query}
           onQueryChange={setQuery}
-          onShuffle={handleShuffle}
           viewMode={viewMode}
           onViewModeChange={handleViewModeChange}
         />
