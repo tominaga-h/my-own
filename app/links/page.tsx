@@ -85,9 +85,10 @@ export default function LinksPage() {
 
   const visibleRows = view === "archived" ? archivedRows : unreadRows;
 
+  // 検索中はビュー（未読/アーカイブ）を跨いだ全件から検索する。
   const searchedRows = useMemo<DisplayFields[]>(() => {
     if (!normalizedQuery) return visibleRows;
-    const searchRecords: LinkSearchRecord[] = visibleRows.map((d) => ({
+    const searchRecords: LinkSearchRecord[] = displayRows.map((d) => ({
       id: d.id,
       title: d.title,
       url: d.rawUrl,
@@ -97,8 +98,8 @@ export default function LinksPage() {
     const matchedIds = new Set(
       filterLinksByQuery(searchRecords, normalizedQuery).map((r) => r.id),
     );
-    return visibleRows.filter((d) => matchedIds.has(d.id));
-  }, [visibleRows, normalizedQuery]);
+    return displayRows.filter((d) => matchedIds.has(d.id));
+  }, [displayRows, visibleRows, normalizedQuery]);
 
   const filteredRows = useMemo<DisplayFields[]>(() => {
     // 検索中はランダム並びを無視して API 順を維持する。
