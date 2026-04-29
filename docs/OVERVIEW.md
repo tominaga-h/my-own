@@ -63,21 +63,26 @@ URL主体のリンク。
 | created_at | timestamptz | NOT NULL | 作成日時 |
 | updated_at | timestamptz | NOT NULL | 更新日時 |
 
-### tasks (Phase 4で追加)
+### tasks (my-task-sync 経由)
 
-タスク管理。既存 my-task (Rust CLI) から統合予定。
+タスクは Neon に保持しない。 my-task の SQLite (`~/Library/Application Support/my-task/tasks.db`) を **真実の源** とし、my-own は my-task-sync HTTP サーバ (`localhost:3333` / Vercel 本番では ngrok 公開 URL) 経由で読み書きする。
 
-| カラム | 型 | 必須 | 説明 |
-|--------|-----|------|------|
-| id | serial | PK | |
-| user_id | uuid | FK, NOT NULL | auth.users のID (RLS用) |
-| title | text | NOT NULL | タスク名 |
-| status | text | NOT NULL | `'open'`, `'done'`, `'closed'` |
-| project_id | int | | FK → projects |
-| due | date | | 期限 |
-| done_at | date | | 完了日 |
-| created_at | timestamptz | NOT NULL | 作成日時 |
-| updated_at | timestamptz | NOT NULL | 更新日時 |
+DTO の構造は [`MY_TASK_SYNC_INTEGRATION.md`](MY_TASK_SYNC_INTEGRATION.md) を参照。主なフィールド:
+
+| フィールド | 型 | 説明 |
+|-----------|-----|------|
+| taskNumber | number | SQLite rowid (サーバー採番、クライアントは触らない) |
+| title | string | タスク名 |
+| status | string | `'open'` / `'done'` / `'closed'` |
+| source | string | `'cli'` (my-task) / `'web'` (my-own) |
+| projectName | string \| null | プロジェクト名 (my-task-sync 側で名前→id 解決) |
+| due | string \| null | `YYYY-MM-DD` |
+| doneAt | string \| null | `YYYY-MM-DD` |
+| important | boolean | 重要フラグ |
+| reminds | string[] | 通知日 (`YYYY-MM-DD` の配列) |
+| createdAt / updatedAt | string | RFC 3339 datetime (UTC) |
+
+タスク↔ノート / リンクの紐付けのみ Neon の `task_notes` / `task_links` 中間テーブルで管理する。`task_number` は my-task-sync 側 rowid を保持するだけで FK 制約は張れないため、整合性は同期処理で別途担保する。
 
 ### sync_states (システム管理用)
 
@@ -98,8 +103,10 @@ URL主体のリンク。
 | テーブル名 | カラム1 (PK/FK) | カラム2 (PK/FK) | その他 |
 | :--- | :--- | :--- | :--- |
 | **note_links** | `note_id` (int) | `link_id` (int) | `created_at` (timestamptz) |
-| **task_notes** | `task_id` (int) | `note_id` (int) | `created_at` (timestamptz) |
-| **task_links** | `task_id` (int) | `link_id` (int) | `created_at` (timestamptz) |
+| **task_notes** | `task_number` (int, my-task-sync rowid) | `note_id` (int) | `created_at` (timestamptz) |
+| **task_links** | `task_number` (int, my-task-sync rowid) | `link_id` (int) | `created_at` (timestamptz) |
+
+> `task_number` は my-task-sync 側で採番される rowid。Neon に対応する `tasks` テーブルが存在しないため FK 制約は張れない。
 
 ## Slack同期
 
@@ -114,7 +121,7 @@ URL主体のリンク。
 
 ## 開発フェーズ
 
-### Phase 1: 基盤 + Auth + Slack同期
+### Phase 1: 基盤 + Auth + Slack同期 (完了)
 
 - Neon にテーブル・中間テーブルの作成（アプリ層で認可）
 - GitHubログイン (NextAuth.js) の設定
@@ -122,42 +129,41 @@ URL主体のリンク。
 - Slack API で自分DMの差分を取得する Cron 用 API Route (CRON_SECRET保護)
 - Vercel Cron で定期実行し、DBに保存 + `sync_states` 更新
 
-**ゴール**: セキュアな環境下で、Slackに書いたらDBに溜まる仕組みの完成
+### Phase 2: 閲覧UI (完了)
 
-### Phase 2: 閲覧UI
+- ログイン画面、Note / Link 一覧・詳細画面、密度の高い一覧ビュー、検索・フィルタ
 
-- ログイン画面の実装
-- Note 一覧・詳細画面
-- Link 一覧・詳細画面
-- 検索・フィルタ (最低限)
-
-**ゴール**: Slackに書いたらWebで見られる
-
-### Phase 3: 手動CRUD + リレーション
+### Phase 3: 手動CRUD + リレーション (進行中)
 
 - Note / Link の新規作成・編集・削除
 - 詳細画面・編集画面で関連アイテムを紐付けるUI（中間テーブルへの操作）
 - 詳細画面に関連アイテム表示
 
-**ゴール**: Web上でメモとリンクを柔軟に管理・結合できる
+### Phase 4: Task統合 (完了)
 
-### Phase 4: Task統合
+採用したアプローチは「**my-task は SQLite のまま維持し、my-task-sync (Rust 製 axum HTTP サーバ) を仲介層に置く**」。my-own は Neon にタスクを保持せず、my-task-sync REST API 経由で読み書きする。my-task-sync は Phase 1 (REST 骨格 / 5 endpoints) と Phase 2 (ngrok 自動起動 + `/api/status`) を完了し、本番運用中。
 
-- tasks テーブルおよび関連中間テーブルの追加
-- 既存 my-task (Rust CLI + SQLite) からのマイグレーション or API連携
-- Task の CRUD + リレーション
-- my-task CLI が my-own API を叩く形への移行
+実装済み:
+- my-task-sync を経由した Task の CRUD (`GET/POST/PATCH /api/tasks`, `GET /api/tasks/:n`)
+- Project の CRUD (`GET /api/projects`, `POST /api/projects`, `PATCH /api/projects/:id`, `DELETE /api/projects/:id`)
+- my-own 側 `lib/my-task-sync.ts` HTTP クライアント + Route Handler の `/api/tasks*` / `/api/projects*` 委譲
+- ngrok サブプロセス自動起動による Vercel ↔ ローカル疎通
+- `/api/status` (運用診断用、認証不要)
+- Neon の中間テーブル `task_notes` / `task_links` (FK なし、`task_number` は my-task-sync rowid を保持)
+
+詳細は [`MY_TASK_SYNC_INTEGRATION.md`](MY_TASK_SYNC_INTEGRATION.md) と [`SETUP_GUIDE.md`](SETUP_GUIDE.md)。
 
 ### Phase 5: 拡張
 
 - タグ機能
-- CLIからAPI経由で操作
 - Slack投稿にマーカー (`#task-10` 等) でリレーション自動生成
+- タスク↔ノート/リンク紐付け UI (FK なしのため孤児行 sweep ロジックも同時整備)
 
 ## 既存システムとの関係
 
-- **my-task** (Rust CLI + SQLite): Phase 4 まで独立して存続。統合後はCLIがmy-own APIを叩く形を想定
-- **Slack**: データソースとして利用。自分DMへの投稿が入力手段となる
+- **my-task** (Rust CLI + SQLite): タスクの真実の源。CLI は SQLite に直書き
+- **my-task-sync** (Rust + axum): macOS 上で常駐し、my-task の SQLite を REST で公開。launchctl + ngrok で公開。my-own から Bearer 認証で叩かれる
+- **Slack**: ノート/リンクのデータソース。自分宛 DM への投稿が入力手段となる
 
 ## 備考
 

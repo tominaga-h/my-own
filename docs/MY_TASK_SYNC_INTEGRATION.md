@@ -1,63 +1,75 @@
-# my-own 統合ガイド (Phase 1)
+# my-own ↔ my-task-sync 統合リファレンス
 
-> このドキュメントは **my-own** (`~/lab/typescript/REACT/my-own`) 側で
-> 必要な実装変更をまとめた作業指示書。my-task-sync v2 (HTTP サーバー化)
-> に合わせて、my-own の `/api/tasks` 周りを Neon 直読から my-task-sync
-> の REST 呼び出しに切り替える。
+> my-own が **my-task-sync バックエンドサーバ**
+> 経由でタスク / プロジェクトを CRUD する仕組みのリファレンス。
 >
-> - my-task-sync 側の API 仕様: [`API.md`](API.md)
-> - v2 設計全体: [`SERVER_DESIGN.md`](SERVER_DESIGN.md)
+> ステータス: **実装完了**。my-task-sync 側 Phase 1 (REST 骨格 + 5 endpoints) /
+> Phase 2 (ngrok 自動起動 + `/api/status`) と、my-own 側の Route Handler
+> 委譲・SWR 連携・project CRUD UI まで本番運用中。
+>
+> - my-task-sync 側の API 仕様: [`my-task-sync/docs/API.md`](https://github.com/mad-tmng/my-task-sync/blob/main/docs/API.md)
+> - サーバ設計全体: [`my-task-sync/docs/SERVER_DESIGN.md`](https://github.com/mad-tmng/my-task-sync/blob/main/docs/SERVER_DESIGN.md)
+> - 環境構築: [`SETUP_GUIDE.md`](SETUP_GUIDE.md)
 
 ## 背景
 
-v1 では **my-task-sync が polling daemon として my-own API を叩く** 方向
-だった。v2 で **my-own が my-task-sync HTTP サーバーを叩く** 方向に反転
-したため:
+my-task-sync v1 は polling daemon (my-own API を叩いて差分を Neon に push)
+として設計されていた。v2 で **HTTP バックエンドサーバ化** し、my-own が
+my-task-sync を叩く方向に反転している。
 
-- my-own の既存 `/api/tasks` Route Handler は Neon の `tasks` テーブルを
-  読んでいるが、これを **my-task-sync の `/api/tasks` 呼び出しに置き換える**
-- SQLite が真実の源 (my-task CLI が書き込む先)、Neon の `tasks*` は実質
-  不要になる (キャッシュとして残すかは要判断 — 後述)
-- ユーザーラップトップが稼働中のときだけ my-task-sync が到達可能という
-  **オフライン前提** が生まれる
+採用したアーキテクチャの帰結:
 
-## アーキテクチャ (変更後)
+- my-own は **Neon にタスク系テーブルを持たない**。`tasks` / `task_reminds` /
+  task 用 `projects` は my-task-sync (SQLite) が真実の源。
+- my-own の `/api/tasks*` / `/api/projects*` Route Handler は **my-task-sync
+  HTTP API への薄い委譲**。Bearer 認証・入力 validation・エラーマッピングを
+  挟む。
+- my-task-sync が落ちている (Mac shut down / ngrok 切断) と my-own のタスク
+  系 API は 502 を返す。**オフライン前提** がアーキテクチャに組み込まれている。
+- `notes` / `links` / Neon 側 `projects` は従来通り my-own が Neon に直接
+  書く (Slack 起点・Web 起点のデータなので仲介不要)。
+
+## アーキテクチャ
 
 ```
 ┌──────────────────────────┐         ┌──────────────────────────┐
-│   my-own (Vercel)        │         │ my-task-sync (local Mac) │
+│   my-own (Vercel / dev)  │         │ my-task-sync (local Mac) │
 │                          │         │                          │
 │  app/tasks/page.tsx      │         │  axum :3333              │
 │    │ SWR                 │         │  (launchctl LaunchAgent) │
-│    ▼                     │         │                          │
-│  /api/tasks (Route)      │  HTTPS  │  GET/POST/PATCH/GET       │
-│    │ Bearer auth         ├────────►│    /api/tasks             │
-│    │ + MY_TASK_SYNC_URL  │  via    │    /api/tasks/{n}         │
-│    ▼                     │  ngrok  │    /api/projects          │
-│  lib/api-data.ts         │ (Ph2)   │                          │
-│                          │         │         │                │
-│  (Neon: notes/links      │         │         ▼                │
-│   のみを直接 CRUD)        │         │    SQLite ◄──── my-task  │
+│    ▼                     │         │  + ngrok 子プロセス自動起動 │
+│  /api/tasks* (Route)     │  HTTPS  │                          │
+│    │ Bearer auth         ├────────►│  GET/POST/PATCH          │
+│    │ + MY_TASK_SYNC_URL  │  via    │    /api/tasks(/{n})      │
+│    ▼                     │  ngrok  │  GET/POST/PATCH/DELETE   │
+│  lib/my-task-sync.ts     │         │    /api/projects(/{id})  │
+│                          │         │  GET /api/status         │
+│  Neon Postgres           │         │  GET /healthz            │
+│   notes / links /        │         │         │                │
+│   note_links /           ├────────►│         ▼                │
+│   task_notes /           │ http    │    SQLite ◄──── my-task  │
+│   task_links /           │ (dev)   │         (Rust CLI)       │
+│   projects               │         │                          │
 └──────────────────────────┘         └──────────────────────────┘
 ```
 
-my-own が Vercel 上で動くので、Phase 1 (ローカル開発) では **my-own を
-`npm run dev` で起動した上で** my-task-sync (localhost:3333) を叩く。
-Phase 2 で ngrok 公開 URL に向ける。
+ローカル開発では my-task-sync を `cargo run` し、my-own から `localhost:3333` を直接叩く。Vercel 本番では my-task-sync が起動時に ngrok サブプロセスを spawn し、固定ドメインで HTTPS 公開する。
 
-## 変更サマリ
+## 実装範囲 (完了)
 
 | 種別 | 対象 | 内容 |
 |------|------|------|
-| 追加 | `.env.local` / Vercel env | `MY_TASK_SYNC_BASE_URL`, `MY_TASK_SYNC_API_KEY` |
-| 追加 | `lib/my-task-sync.ts` (新規) | my-task-sync HTTP クライアント (TypeScript 型 + fetch wrapper) |
-| 書き換え | `lib/api-data.ts::listTasks` | Neon 直読 → my-task-sync `GET /api/tasks` |
-| 書き換え | `app/api/tasks/route.ts` | GET のレスポンス形を my-task-sync に合わせる / POST / PATCH / GET /:n を追加 |
-| 書き換え | `app/tasks/page.tsx` / `TasksView.tsx` | DTO が `taskNumber` / `projectName` / `reminds` に変わるので型・表示ロジック更新 |
-| 削除候補 | `lib/task-migration.ts` | v1 用 (SQLite ファイル直読)。v2 では不要 |
-| 削除候補 | Drizzle schema の `tasks` / `task_reminds` / `projects` (タスク関連) | Neon を真実の源から外すなら削除。キャッシュとして残すなら保持 (要判断) |
+| 環境変数 | `.env.local` / Vercel env | `MY_TASK_SYNC_BASE_URL`, `MY_TASK_SYNC_API_KEY` |
+| 追加 | `lib/my-task-sync.ts` | TypeScript 型 + `mtsFetch` + endpoints (`mtsList/Get/Create/Patch Task`, `mtsList/Create/Patch/Delete Project`) + 入力 validation helper |
+| 追加 | `lib/mts-error-response.ts` | my-task-sync エラーを Next.js NextResponse に変換 (502 Bad Gateway を含む) |
+| 書き換え | `lib/api-data.ts::listTasks` | my-task-sync `GET /api/tasks` 経由 |
+| 追加 | `app/api/tasks/route.ts` | GET (status/since/project/limit クエリ) + POST → my-task-sync 委譲 |
+| 追加 | `app/api/tasks/[taskNumber]/route.ts` | GET / PATCH 委譲 |
+| 追加 | `app/api/projects/route.ts` | GET / POST 委譲 |
+| 追加 | `app/api/projects/[id]/route.ts` | PATCH / DELETE 委譲 |
+| 更新 | `app/tasks/page.tsx` / `TasksView.tsx` | DTO は `taskNumber` / `projectName` / `reminds` ベース |
 
-> **`notes` / `links` は従来通り Neon 直 CRUD。** 影響範囲はタスク系のみ。
+> **`notes` / `links` / `note_links` / Neon の `projects` (note/link 用) は引き続き Neon 直 CRUD。** my-task-sync 経由はタスク系のみ。
 
 ## 設定変更
 
@@ -66,13 +78,13 @@ Phase 2 で ngrok 公開 URL に向ける。
 `.env.example` に追記:
 
 ```bash
-# my-task-sync (Phase 1: localhost / Phase 2: ngrok 公開 URL)
+# my-task-sync (ローカル: localhost / Vercel 本番: ngrok 公開 URL)
 MY_TASK_SYNC_BASE_URL=http://localhost:3333
 MY_TASK_SYNC_API_KEY=replace_me
 ```
 
 - **ローカル開発**: `http://localhost:3333`
-- **Vercel 本番 (Phase 2)**: `https://<ngrok-domain>.ngrok-free.dev`
+- **Vercel 本番**: `https://<ngrok-domain>.ngrok-free.dev`
 - `MY_TASK_SYNC_API_KEY` は my-task-sync 側の `[server].api_key` と同じ値
 
 ### 解決ヘルパ (推奨実装)
@@ -247,284 +259,76 @@ export function mtsListProjects(): Promise<ProjectListResponse> {
 }
 ```
 
-### 重要な制約 (クライアント側で守る)
-
-- **`taskNumber` を POST / PATCH の body に入れない** → 400 返却
-- **未知フィールドを送らない** (例: `reminders` は typo → 400)
-- **`since` は RFC 3339 datetime** (`YYYY-MM-DD` 単独は 400)。レスポンスの
-  `serverTime` をそのまま次回の `since` に投げ戻す想定
-- **`reminds: null` を送らない** → 400。未送信は "既存保持"
-
-## 既存コードの書き換え
-
-### `lib/api-data.ts::listTasks`
-
-旧 (Neon 直読):
+### project endpoints
 
 ```ts
-export async function listTasks(userId: string) {
-  const [rows, reminds, projectRows] = await Promise.all([...]);
-  return { rows, remindsMap, projectMap };
-}
+export function mtsListProjects(): Promise<ProjectListResponse>;
+export function mtsCreateProject(body: { name: string }): Promise<ProjectResponse>;
+export function mtsPatchProject(id: number, body: { name: string }): Promise<ProjectResponse>;
+export function mtsDeleteProject(id: number): Promise<void>;
 ```
 
-新 (my-task-sync 呼び出し):
+### クライアント側で守るべき制約
 
-```ts
-import { mtsListTasks } from "./my-task-sync";
+- **`taskNumber` を POST / PATCH の body に入れない** → 400
+- **未知フィールドを送らない** (例: `reminders` は typo → 400)。`TaskCreateDto` は server 側 `deny_unknown_fields`
+- **`since` は RFC 3339 datetime** (`YYYY-MM-DD` 単独は 400)。レスポンスの `serverTime` をそのまま次回 `since` に投げ戻す
+- **`reminds: null` を送らない** → 400。未送信なら "既存保持"
+- **PATCH `updatedAt` を送らないと server 側で `Utc::now()` に auto-bump**
 
-export async function listTasks(_userId: string) {
-  // my-task-sync は単一ユーザーなので userId は無視 (署名は互換維持)。
-  // limit は explicit に指定して DEFAULT_LIMIT (500) を明示化。
-  const res = await mtsListTasks({ limit: 500 });
-  return { tasks: res.tasks, serverTime: res.serverTime };
-}
-```
+## 採用済みの設計判断
 
-### `app/api/tasks/route.ts`
+### Neon にタスク系テーブルを置かない
 
-GET / POST / PATCH を揃える:
+Neon にはタスク系を保持しない (採用案 a)。`lib/task-migration.ts` は v1 用に存在していたが削除済み。`db/schema.ts` の `tasks` / `task_reminds` / 旧 task 用 projects も既に削除されており、残っているのは `task_notes` / `task_links` (FK なし) のみ。
 
-```ts
-import { NextResponse } from "next/server";
-import {
-  mtsListTasks,
-  mtsCreateTask,
-  mtsPatchTask,
-  TaskCreateBody,
-  TaskPatchBody,
-} from "../../../lib/my-task-sync";
-import { requireApiUserId, toApiAuthResponse } from "../../../lib/api-auth";
+オフライン閲覧が必要になった場合のみ read-through キャッシュ案 (b) を再検討する。
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+### `userId` は my-task-sync には送らない
 
-export async function GET(request: Request) {
-  try {
-    requireApiUserId(request);
-    const url = new URL(request.url);
-    const since = url.searchParams.get("since") ?? undefined;
-    const data = await mtsListTasks({ since, limit: 500 });
-    return NextResponse.json(data);
-  } catch (e) {
-    const authResp = toApiAuthResponse(e);
-    if (authResp) return authResp;
-    return mapMtsError(e);
-  }
-}
+my-own は `requireApiUserId(request)` で API 認証を維持しつつ、my-task-sync は単一ユーザー前提のままにしている。マルチユーザー化したくなったら my-task-sync インスタンスをユーザーごとに立てる方向で検討する。
 
-export async function POST(request: Request) {
-  try {
-    requireApiUserId(request);
-    const body = (await request.json()) as TaskCreateBody;
-    const data = await mtsCreateTask(body);
-    return NextResponse.json(data, { status: 201 });
-  } catch (e) {
-    const authResp = toApiAuthResponse(e);
-    if (authResp) return authResp;
-    return mapMtsError(e);
-  }
-}
+### オフライン時の UX
 
-// PATCH は別 route file: app/api/tasks/[taskNumber]/route.ts を作る
-
-function mapMtsError(e: unknown): NextResponse {
-  if (typeof e === "object" && e && "status" in e && "error" in e) {
-    const err = e as { status: number; error: string };
-    return NextResponse.json({ error: err.error }, { status: err.status });
-  }
-  // ネットワーク障害など: 502 Bad Gateway で "my-task-sync unreachable"
-  return NextResponse.json(
-    { error: "my-task-sync unreachable" },
-    { status: 502 },
-  );
-}
-```
-
-PATCH / 単一 GET 用:
-
-```ts
-// app/api/tasks/[taskNumber]/route.ts
-import { NextResponse } from "next/server";
-import {
-  mtsGetTask,
-  mtsPatchTask,
-  TaskPatchBody,
-} from "../../../../lib/my-task-sync";
-import { requireApiUserId, toApiAuthResponse } from "../../../../lib/api-auth";
-
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ taskNumber: string }> },
-) {
-  try {
-    requireApiUserId(request);
-    const { taskNumber } = await params;
-    const data = await mtsGetTask(Number(taskNumber));
-    return NextResponse.json(data);
-  } catch (e) {
-    const authResp = toApiAuthResponse(e);
-    if (authResp) return authResp;
-    return mapMtsError(e);
-  }
-}
-
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ taskNumber: string }> },
-) {
-  try {
-    requireApiUserId(request);
-    const { taskNumber } = await params;
-    const body = (await request.json()) as TaskPatchBody;
-    const data = await mtsPatchTask(Number(taskNumber), body);
-    return NextResponse.json(data);
-  } catch (e) {
-    const authResp = toApiAuthResponse(e);
-    if (authResp) return authResp;
-    return mapMtsError(e);
-  }
-}
-
-// mapMtsError は共通ユーティリティ化を推奨 (lib/my-task-sync.ts に移動など)
-```
-
-### `app/tasks/page.tsx` + `TasksView.tsx`
-
-SWR の型を更新:
-
-```ts
-// 旧
-type TasksResponse = {
-  rows: Array<{ id: number; userId: string; /* ... */ }>;
-  remindsMap: Record<number, string[]>;
-  projectMap: Record<number, string>;
-};
-
-// 新 (my-task-sync のレスポンス形をそのまま使う)
-import { TaskListResponse } from "../../lib/my-task-sync";
-type TasksResponse = TaskListResponse;
-```
-
-`TasksView.tsx` の props も `tasks: TaskDto[]` に変更。フィールド名の
-書き換え:
-- `id` → `taskNumber`
-- `projectId` + `projectMap` → `projectName` 直参照
-- `createdAt` / `updatedAt` は ISO 文字列のまま
-- `remindsMap[id]` → `task.reminds`
+my-task-sync が落ちている / ngrok 切断時、Route Handler は 502 を返す。`/tasks` 画面はエラーバナーを出して読み取り専用にフォールバックする。ノート / リンク系 (Neon 直結) は影響を受けない。
 
 ## task_notes / task_links の整合性
 
-Neon に `tasks` テーブルが存在しないため、`task_notes` / `task_links` の
-`task_number` カラム (= my-task-sync の rowid) には FK 制約を張れない。
-これにより:
+Neon に `tasks` テーブルが存在しないため、`task_notes` / `task_links` の `task_number` カラムには FK 制約を張れない。これにより:
 
-- **孤児行**: my-task-sync 側で `my-task rm <n>` などタスクが削除されても、
-  Neon の `task_notes` / `task_links` には `task_number = n` の行が残る
-- **整合性管理**: 将来 Vercel Cron or 同期処理で `task_number` の存在を
-  my-task-sync `GET /api/tasks` の結果と突合し、孤児行を sweep する想定
-- **書き込み時のガード (推奨)**: 紐付けを INSERT する Route Handler では
-  `mtsGetTask(taskNumber)` で存在確認し、404 なら 400 で拒否する
+- **孤児行**: my-task-sync 側で `my-task rm <n>` などタスクが削除されても、Neon の `task_notes` / `task_links` には `task_number = n` の行が残る
+- **整合性管理**: Vercel Cron もしくは同期処理で `task_number` の存在を `GET /api/tasks` 結果と突合し、孤児行を sweep する (Phase 5 タスク)
+- **書き込み時ガード**: 紐付けを INSERT する Route Handler では `mtsGetTask(taskNumber)` で存在確認し、404 なら 400 で拒否する
 
-このギャップは Phase 1 では未実装。タスク↔ノート/リンクの紐付け UI を
-実装するタイミングで合わせて整備する。
+タスク↔ノート/リンク紐付け UI を実装するタイミングで一緒に整備する。
 
-## 未決事項 (要判断)
+## 開発フロー
 
-### 1. Neon の `tasks` / `task_reminds` / `projects` テーブルをどうするか
-
-選択肢:
-
-**(a) 完全削除** — Neon からタスク系を落とす
-  - メリット: スキーマが単純化、二重管理の誤解を防げる
-  - デメリット: my-task-sync オフライン時に my-own が何も表示できない
-
-**(b) read-through キャッシュとして残す** — my-own は my-task-sync を
-    優先し、到達不能時に Neon から読む。書き込みは常に my-task-sync 経由
-  - メリット: オフライン時も直近のタスク閲覧が可能
-  - デメリット: 整合性管理が必要 (いつキャッシュを更新するか)
-
-**(c) 書き込みも Neon に二重化** — 過剰設計、非推奨
-
-**推奨: 最初は (a)**。`lib/task-migration.ts` は 1 回ローカル同期する用途
-で存在していたので削除、Drizzle schema からも tasks 系を落とす。オフライン
-閲覧が必要になったら (b) に移行。
-
-### 2. `userId` の扱い
-
-my-own の既存スキーマは `userId` で分離 (マルチユーザー想定)。my-task-sync
-は単一ユーザー前提で `userId` を知らない。Phase 1 では:
-
-- my-own の Route Handler は `requireApiUserId(request)` で引き続き認証
-- my-task-sync には `userId` を送らない (必要なし)
-- 将来マルチユーザー対応する場合、my-task-sync 側も user 分離するか、
-  インスタンスを user ごとに立てるかを別途判断
-
-### 3. オフライン時の UX
-
-my-task-sync がオフライン (ラップトップ shut down / ngrok 切断) のとき:
-- fetch が失敗 → Route Handler が 502 を返す → SWR がエラー状態
-- **最低限**: ページ側で "my-task-sync に到達できません" バナーを出す
-- **推奨**: retry ボタン + 直近の成功レスポンスを localStorage にキャッシュ
-  して読み取り専用モードで表示
-
-## 開発フロー (ローカル)
-
-my-task-sync と my-own を同時に立ち上げる:
+ローカル開発:
 
 ```bash
 # terminal 1: my-task-sync
 cd ~/lab/rust/my-task-sync
-MY_TASK_SYNC_API_KEY=dev-secret MY_TASK_SYNC_PORT=3333 cargo run
+MY_TASK_SYNC_API_KEY=dev-secret MY_TASK_SYNC_PORT=3333 cargo run --release
+# あるいは launchctl で常駐させた状態で動かす
 
 # terminal 2: my-own
 cd ~/lab/typescript/REACT/my-own
-# .env.local に以下を追加
-# MY_TASK_SYNC_BASE_URL=http://localhost:3333
-# MY_TASK_SYNC_API_KEY=dev-secret
-npm run dev
-# → http://localhost:3000
+# .env.local
+#   MY_TASK_SYNC_BASE_URL=http://localhost:3333
+#   MY_TASK_SYNC_API_KEY=dev-secret
+npm run dev   # → http://localhost:3000
 ```
 
-### 結合テスト checklist (my-task-sync T8 と同じ)
+Vercel 本番では `MY_TASK_SYNC_BASE_URL` を `https://<ngrok-domain>.ngrok-free.dev` に向ける。my-task-sync 側で `[ngrok].domain` を設定すると起動時に `ngrok http 3333 --domain <domain>` が自動で立ち上がるため、my-own 側のコード変更は不要。
+
+### 結合テスト checklist
 
 - [ ] `my-task add "…"` (CLI) → my-own `/tasks` で即時表示
 - [ ] my-own で新規作成 → `my-task ls` で表示
 - [ ] 両側で同一タスクを編集 → `updatedAt` が新しい方が勝つ (後勝ち)
 - [ ] `my-task done <n>` → my-own で status=done 反映
-- [ ] my-own で project 新規指定 → `my-task projects` に出現
-- [ ] my-task-sync を Ctrl-C で落とす → my-own に 502 エラーバナー
+- [ ] my-own の `/tasks` プロジェクト管理モーダルで新規 project → `my-task projects` に出現
+- [ ] my-task-sync を Ctrl-C で落とす → my-own `/tasks` が 502 / エラー表示
 - [ ] my-task-sync 再起動 → my-own が回復
-
-## Phase 2 での切り替え
-
-my-task-sync が ngrok サブプロセスを自動起動するようになったら、Vercel の
-環境変数を更新するだけ:
-
-| Vercel env | 値 |
-|------------|------|
-| `MY_TASK_SYNC_BASE_URL` | `https://<ngrok-domain>.ngrok-free.dev` |
-| `MY_TASK_SYNC_API_KEY`  | (変更なし) |
-
-クライアントコードは変更不要。
-
-## 実装順 (推奨)
-
-1. `.env.example` に `MY_TASK_SYNC_BASE_URL` / `MY_TASK_SYNC_API_KEY` 追加
-2. `lib/my-task-sync.ts` 新規作成 (型 + `mtsFetch` + 5 ハンドラ)
-3. `lib/api-data.ts::listTasks` を差し替え (旧実装をコメント保持でもよい)
-4. `app/api/tasks/route.ts` を GET + POST 対応に更新
-5. `app/api/tasks/[taskNumber]/route.ts` を新規作成 (GET + PATCH)
-6. `app/tasks/page.tsx` + `TasksView.tsx` を新 DTO に合わせる
-7. ローカルで my-task-sync + my-own を両方立てて結合テスト
-8. (判断後) Neon スキーマから tasks 系削除 + `lib/task-migration.ts` 削除
-9. Phase 2 で Vercel env を ngrok URL に更新
-
-## 参考: my-task-sync 側の開発状況
-
-Phase 1 のエンドポイント実装は完了済み ([`API.md`](API.md) 参照)。残タスク
-は T8 (このドキュメントに書いた結合テスト) のみ。Phase 2 (ngrok 自動起動
-+ `/api/status`) はこの統合後に着手する。
+- [ ] my-task-sync の `/api/status` (認証不要) で SQLite path / ngrok URL を確認
