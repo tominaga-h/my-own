@@ -67,11 +67,13 @@ export const links = pgTable(
     postedAt: timestamp("posted_at", { withTimezone: true }).notNull().defaultNow(),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    readAt: timestamp("read_at", { withTimezone: true }),
   },
   (table) => ({
     userIdIdx: index("links_user_id_idx").on(table.userId),
     projectIdIdx: index("links_project_id_idx").on(table.projectId),
     slackTsIdx: index("links_slack_ts_idx").on(table.slackTs),
+    readAtIdx: index("links_read_at_idx").on(table.readAt),
     userSlackTsUnique: unique("links_user_slack_ts_unique").on(table.userId, table.slackTs),
     sourceCheck: check("links_source_check", sql`${table.source} in ('slack', 'manual')`),
   }),

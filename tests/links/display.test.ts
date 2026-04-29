@@ -11,6 +11,7 @@ function makeRow(overrides: Partial<LinkRow> = {}): LinkRow {
     slackAttachments: null,
     createdAt: "2026-04-22T00:00:00.000Z",
     postedAt: "2026-04-22T00:00:00.000Z",
+    readAt: null,
     ...overrides,
   };
 }
@@ -91,5 +92,18 @@ describe("deriveDisplayFields", () => {
     );
     expect(d.imageUrl).toBeNull();
     expect(d.serviceName).toBe("Link");
+  });
+
+  it("marks unread when readAt is null", () => {
+    const d = deriveDisplayFields(makeRow({ readAt: null }));
+    expect(d.isRead).toBe(false);
+    expect(d.readAt).toBeNull();
+  });
+
+  it("marks read when readAt has an ISO timestamp", () => {
+    const readAt = "2026-04-23T12:00:00.000Z";
+    const d = deriveDisplayFields(makeRow({ readAt }));
+    expect(d.isRead).toBe(true);
+    expect(d.readAt).toBe(readAt);
   });
 });

@@ -8,9 +8,16 @@ import { safeHostname } from "../../lib/links/viewMode";
 type Props = {
   row: DisplayFields;
   normalizedQuery: string;
+  isRead: boolean;
+  onToggleRead: (id: number, currentlyRead: boolean) => void;
 };
 
-export default function LinksCompactRow({ row, normalizedQuery }: Props) {
+export default function LinksCompactRow({
+  row,
+  normalizedQuery,
+  isRead,
+  onToggleRead,
+}: Props) {
   const hostname = safeHostname(row.sourceLabel);
   const initial = row.serviceName.charAt(0).toUpperCase() || "L";
   const dateLabel = new Date(row.createdAt).toLocaleDateString("ja-JP", {
@@ -89,6 +96,47 @@ export default function LinksCompactRow({ row, normalizedQuery }: Props) {
           <path d="M8 7h9v9" />
         </svg>
       </a>
+
+      <button
+        type="button"
+        onClick={() => onToggleRead(row.id, isRead)}
+        aria-label={isRead ? "未読に戻す" : "読んだ"}
+        aria-pressed={isRead}
+        className={[
+          "shrink-0 inline-flex h-6 w-6 items-center justify-center rounded-full border transition focus:outline-none focus:ring-2 focus:ring-indigo-200",
+          isRead
+            ? "border-emerald-300 bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+            : "border-slate-200 bg-white text-slate-300 hover:border-indigo-300 hover:text-indigo-500",
+        ].join(" ")}
+      >
+        {isRead ? (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="h-3.5 w-3.5"
+            aria-hidden="true"
+          >
+            <path d="M5 12l5 5L20 7" />
+          </svg>
+        ) : (
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            className="h-3.5 w-3.5"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="9" />
+          </svg>
+        )}
+      </button>
     </li>
   );
 }

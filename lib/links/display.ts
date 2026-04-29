@@ -17,6 +17,7 @@ export type LinkRow = {
   slackAttachments: unknown[] | null;
   createdAt: string;
   postedAt: string;
+  readAt: string | null;
 };
 
 export type DisplayFields = {
@@ -29,6 +30,8 @@ export type DisplayFields = {
   sourceLabel: string;
   rawUrl: string;
   createdAt: string;
+  isRead: boolean;
+  readAt: string | null;
 };
 
 function asAttachments(value: unknown): SlackAttachment[] {
@@ -54,5 +57,7 @@ export function deriveDisplayFields(row: LinkRow): DisplayFields {
     sourceLabel: attachment?.original_url ?? row.url,
     rawUrl: row.url,
     createdAt: row.createdAt,
+    isRead: Boolean(row.readAt),
+    readAt: row.readAt,
   };
 }
